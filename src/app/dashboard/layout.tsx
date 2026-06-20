@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Menu,
   PenLine,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/calendar", label: "Календарь", icon: Calendar },
   { href: "/dashboard/clients", label: "Клиенты", icon: Users },
   { href: "/dashboard/services", label: "Услуги", icon: Sparkles },
+  { href: "/dashboard/analytics", label: "Аналитика", icon: BarChart3 },
   { href: "/dashboard/promotion", label: "Продвижение", icon: Megaphone },
   { href: "/dashboard/content", label: "Контент", icon: PenLine },
 ];
