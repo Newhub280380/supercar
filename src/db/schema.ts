@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   uniqueIndex,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -229,3 +230,101 @@ export const seoPages = pgTable("seo_pages", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
+
+export const cosmetologistProfiles = pgTable(
+  "cosmetologist_profiles",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    specializations: jsonb("specializations")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    experienceYears: integer("experience_years"),
+    bio: text("bio"),
+    workingHours: jsonb("working_hours").$type<Record<string, { start: string; end: string }>>(),
+    isPublic: boolean("is_public").notNull().default(true),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("cosmetologist_profiles_user_idx").on(table.userId),
+  ],
+);
+
+export const cosmetologistProfilesRelations = relations(
+  cosmetologistProfiles,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [cosmetologistProfiles.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const clientPersonalInfos = pgTable("client_personal_infos", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  skinType: skinTypeEnum("skin_type"),
+  allergies: text("allergies"),
+  preferences: jsonb("preferences").$type<Record<string, unknown>>(),
+  medicalConditions: text("medical_conditions"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("client_personal_infos_user_idx").on(table.userId),
+]);
+
+export const clientPersonalInfosRelations = relations(
+  clientPersonalInfos,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [clientPersonalInfos.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const passwordResetTokensRelations = relations(
+  passwordResetTokens,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [passwordResetTokens.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  jwtId: text("jwt_id").notNull().unique(),
+  userAgent: text("user_agent"),
+  ipAddress: text("ip_address"),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
