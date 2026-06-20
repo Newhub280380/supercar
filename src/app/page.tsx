@@ -1,31 +1,25 @@
-import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeShowcase } from "@/components/theme-showcase";
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-4">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <div className="flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-1.5 text-sm text-muted-foreground">
-          <Sparkles className="size-4" />
-          AI Cosmetology Platform
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 glass border-b border-border/60">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-2">
+            <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-white text-xs font-bold">
+              AI
+            </div>
+            <span className="text-sm font-semibold">Cosmetology Platform</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+          </div>
         </div>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-          Beauty meets{" "}
-          <span className="bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
-            Intelligence
-          </span>
-        </h1>
-        <p className="max-w-xl text-lg text-muted-foreground">
-          AI-powered platform for cosmetologists. Manage clients, appointments,
-          consultations, and marketing — all in one place.
-        </p>
-        <div className="mt-4 flex gap-3">
-          <Button size="lg">Get Started</Button>
-          <Button size="lg" variant="outline">
-            Learn More
-          </Button>
-        </div>
-      </div>
+      </header>
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+        <ThemeShowcase />
+      </main>
     </div>
   );
 }
