@@ -225,3 +225,69 @@ export interface AbTest {
   updatedAt: Date;
 }
 
+export type ContentPlatform = &quot;instagram&quot; | &quot;telegram&quot; | &quot;vk&quot;;
+
+export type ContentTone = "professional" | "friendly" | "entertaining";
+
+export type ContentTemplateType =
+  | "promotion"
+  | "new_procedure"
+  | "review"
+  | "care_tips"
+  | "seasonal"
+  | "seo_description"
+  | "email_welcome"
+  | "email_reminder"
+  | "email_promo"
+  | "hashtags";
+
+export type ContentType = "post" | "email" | "seo" | "hashtags";
+
+export interface ContentGenerationRequest {
+  platform: ContentPlatform;
+  templateType: ContentTemplateType;
+  topic: string;
+  audience?: string;
+  tone: ContentTone;
+  length?: "short" | "medium" | "long";
+  service?: string;
+  hashtags?: boolean;
+  seoKeywords?: string[];
+}
+
+export interface ContentGenerationResult {
+  title?: string;
+  content: string;
+  hashtags?: string[];
+  subjectLine?: string;
+  metaDescription?: string;
+  seoKeywords?: string[];
+  wordCount: number;
+}
+
+export interface ContentItem {
+  id: string;
+  platform: ContentPlatform;
+  templateType: ContentTemplateType;
+  contentType: ContentType;
+  title: string | null;
+  content: string;
+  hashtags: string[] | null;
+  subjectLine: string | null;
+  metaDescription: string | null;
+  tone: ContentTone;
+  audience: string | null;
+  topic: string;
+  createdAt: string;
+}
+
+export interface ContentCalendarItem {
+  id: string;
+  title: string;
+  platform: ContentPlatform;
+  scheduledDate: string;
+  scheduledTime: string;
+  templateType: ContentTemplateType;
+  status: "draft" | "scheduled" | "published";
+  preview: string;
+}

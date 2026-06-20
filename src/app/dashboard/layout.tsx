@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  PenLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/clients", label: "Клиенты", icon: Users },
   { href: "/dashboard/services", label: "Услуги", icon: Sparkles },
   { href: "/dashboard/promotion", label: "Продвижение", icon: Megaphone },
+  { href: "/dashboard/content", label: "Контент", icon: PenLine },
 ];
 
 export default function DashboardLayout({

@@ -20,3 +20,20 @@ export {
   type Procedure,
   type FAQItem,
 } from "./knowledge-base";
+
+export {
+  contentTemplates,
+  getTemplate,
+  buildGeneratorPrompt,
+  PLATFORM_LABELS,
+  TEMPLATE_LABELS,
+  TONE_LABELS,
+  type ContentTemplate,
+  type TemplateParams,
+} from "./content-templates";
+
+export {
+  generateContent,
+  generateMockContent,
+  checkContentRateLimit,
+} from "./content-generator";
