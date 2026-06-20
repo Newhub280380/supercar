@@ -328,3 +328,194 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const subscriberStatusEnum = pgEnum("subscriber_status", [
+  "active",
+  "unsubscribed",
+  "bounced",
+]);
+
+export const smsCampaignStatusEnum = pgEnum("sms_campaign_status", [
+  "draft",
+  "scheduled",
+  "sending",
+  "sent",
+  "failed",
+]);
+
+export const conversionGoalTypeEnum = pgEnum("conversion_goal_type", [
+  "booking",
+  "registration",
+  "visit",
+]);
+
+export const abTestStatusEnum = pgEnum("ab_test_status", [
+  "draft",
+  "running",
+  "completed",
+  "cancelled",
+]);
+
+export const subscriberLists = pgTable(
+  "subscriber_lists",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    name: text("name").notNull(),
+    description: text("description"),
+    subscriberCount: integer("subscriber_count").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+);
+
+export const subscriberListsRelations = relations(subscriberLists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [subscriberLists.userId],
+    references: [users.id],
+  }),
+  subscribers: many(subscribers),
+}));
+
+export const subscribers = pgTable(
+  "subscribers",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    listId: text("list_id")
+      .notNull()
+      .references(() => subscriberLists.id),
+    email: text("email").notNull(),
+    name: text("name"),
+    phone: text("phone"),
+    status: subscriberStatusEnum("status").notNull().default("active"),
+    subscribedAt: timestamp("subscribed_at", { mode: "date" }).defaultNow().notNull(),
+    unsubscribedAt: timestamp("unsubscribed_at", { mode: "date" }),
+  },
+  (table) => [
+    uniqueIndex("subscribers_list_email_idx").on(table.listId, table.email),
+  ],
+);
+
+export const subscribersRelations = relations(subscribers, ({ one }) => ({
+  list: one(subscriberLists, {
+    fields: [subscribers.listId],
+    references: [subscriberLists.id],
+  }),
+}));
+
+export const smsCampaigns = pgTable("sms_campaigns", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  content: text("content").notNull(),
+  recipientCount: integer("recipient_count").notNull().default(0),
+  status: smsCampaignStatusEnum("status").notNull().default("draft"),
+  scheduledAt: timestamp("scheduled_at", { mode: "date" }),
+  sentAt: timestamp("sent_at", { mode: "date" }),
+  metrics: jsonb("metrics").$type<{
+    sent?: number;
+    delivered?: number;
+    failed?: number;
+  }>(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const smsCampaignsRelations = relations(smsCampaigns, ({ one }) => ({
+  user: one(users, {
+    fields: [smsCampaigns.userId],
+    references: [users.id],
+  }),
+}));
+
+export const utmCampaigns = pgTable("utm_campaigns", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  source: text("source").notNull(),
+  medium: text("medium").notNull(),
+  campaign: text("campaign").notNull(),
+  term: text("term"),
+  content: text("content"),
+  landingUrl: text("landing_url").notNull(),
+  clickCount: integer("click_count").notNull().default(0),
+  conversionCount: integer("conversion_count").notNull().default(0),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const utmCampaignsRelations = relations(utmCampaigns, ({ one }) => ({
+  user: one(users, {
+    fields: [utmCampaigns.userId],
+    references: [users.id],
+  }),
+}));
+
+export const conversionGoals = pgTable("conversion_goals", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  type: conversionGoalTypeEnum("type").notNull(),
+  totalAttempts: integer("total_attempts").notNull().default(0),
+  totalCompleted: integer("total_completed").notNull().default(0),
+  conversionRate: decimal("conversion_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const conversionGoalsRelations = relations(conversionGoals, ({ one }) => ({
+  user: one(users, {
+    fields: [conversionGoals.userId],
+    references: [users.id],
+  }),
+}));
+
+export const abTests = pgTable("ab_tests", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  campaignId: text("campaign_id")
+    .references(() => emailCampaigns.id),
+  name: text("name").notNull(),
+  variantASubject: text("variant_a_subject").notNull(),
+  variantBSubject: text("variant_b_subject").notNull(),
+  variantAContent: text("variant_a_content"),
+  variantBContent: text("variant_b_content"),
+  status: abTestStatusEnum("status").notNull().default("draft"),
+  variantAMetrics: jsonb("variant_a_metrics").$type<{
+    sent?: number;
+    opened?: number;
+    clicked?: number;
+  }>(),
+  variantBMetrics: jsonb("variant_b_metrics").$type<{
+    sent?: number;
+    opened?: number;
+    clicked?: number;
+  }>(),
+  winner: text("winner"),
+  startedAt: timestamp("started_at", { mode: "date" }),
+  completedAt: timestamp("completed_at", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const abTestsRelations = relations(abTests, ({ one }) => ({
+  user: one(users, {
+    fields: [abTests.userId],
+    references: [users.id],
+  }),
+  campaign: one(emailCampaigns, {
+    fields: [abTests.campaignId],
+    references: [emailCampaigns.id],
+  }),
+}));
+

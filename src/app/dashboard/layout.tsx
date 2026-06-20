@@ -7,6 +7,7 @@ import {
   Calendar,
   Users,
   Sparkles,
+  Megaphone,
   Bell,
   Settings,
   LogOut,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/calendar", label: "Календарь", icon: Calendar },
   { href: "/dashboard/clients", label: "Клиенты", icon: Users },
   { href: "/dashboard/services", label: "Услуги", icon: Sparkles },
+  { href: "/dashboard/promotion", label: "Продвижение", icon: Megaphone },
 ];
 
 export default function DashboardLayout({

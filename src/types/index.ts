@@ -117,3 +117,111 @@ export interface SeoPage {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type SubscriberStatus = "active" | "unsubscribed" | "bounced";
+
+export type SmsCampaignStatus =
+  | "draft"
+  | "scheduled"
+  | "sending"
+  | "sent"
+  | "failed";
+
+export type ConversionGoalType = "booking" | "registration" | "visit";
+
+export type AbTestStatus = "draft" | "running" | "completed" | "cancelled";
+
+export interface SubscriberList {
+  id: string;
+  userId: string;
+  name: string;
+  description: string | null;
+  subscriberCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Subscriber {
+  id: string;
+  listId: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  status: SubscriberStatus;
+  subscribedAt: Date;
+  unsubscribedAt: Date | null;
+}
+
+export interface SmsCampaignMetrics {
+  sent?: number;
+  delivered?: number;
+  failed?: number;
+}
+
+export interface SmsCampaign {
+  id: string;
+  userId: string;
+  name: string;
+  content: string;
+  recipientCount: number;
+  status: SmsCampaignStatus;
+  scheduledAt: Date | null;
+  sentAt: Date | null;
+  metrics: SmsCampaignMetrics | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UtmCampaign {
+  id: string;
+  userId: string;
+  name: string;
+  source: string;
+  medium: string;
+  campaign: string;
+  term: string | null;
+  content: string | null;
+  landingUrl: string;
+  clickCount: number;
+  conversionCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ConversionGoal {
+  id: string;
+  userId: string;
+  name: string;
+  type: ConversionGoalType;
+  totalAttempts: number;
+  totalCompleted: number;
+  conversionRate: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AbTestMetrics {
+  sent?: number;
+  opened?: number;
+  clicked?: number;
+}
+
+export interface AbTest {
+  id: string;
+  userId: string;
+  campaignId: string | null;
+  name: string;
+  variantASubject: string;
+  variantBSubject: string;
+  variantAContent: string | null;
+  variantBContent: string | null;
+  status: AbTestStatus;
+  variantAMetrics: AbTestMetrics | null;
+  variantBMetrics: AbTestMetrics | null;
+  winner: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
