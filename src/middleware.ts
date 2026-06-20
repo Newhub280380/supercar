@@ -3,9 +3,10 @@ import { jwtVerify } from "jose";
 
 const AUTH_COOKIE_NAME = "auth_token";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
+const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/chat"];
 const AUTH_PREFIXES = ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/auth/role-selection"];
 const API_AUTH_PREFIX = "/api/auth";
+const API_PROTECTED_PREFIXES = ["/api/chat", "/api/conversations", "/api/export-pdf"];
 const PUBLIC_PREFIXES = ["/", "/about", "/pricing", "/contact"];
 
 const ROLE_PATH_MAP: Record<string, string[]> = {
@@ -24,6 +25,12 @@ async function verifyToken(token: string): Promise<{ sub: string; role: string }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  for (const prefix of API_PROTECTED_PREFIXES) {
+    if (pathname.startsWith(prefix)) {
+      return handleApiAuth(request);
+    }
+  }
 
   for (const prefix of PROTECTED_PREFIXES) {
     if (pathname.startsWith(prefix)) {
