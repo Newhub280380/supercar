@@ -11,6 +11,7 @@ import {
   PLATFORM_LABELS,
   TONE_LABELS,
 } from "@/lib/ai/content-templates";
+import type { ContentPlatform } from "@/types";
 import type { ContentGenerationSettings } from "@/hooks/use-content-generator";
 import { useState } from "react";
 
@@ -21,7 +22,7 @@ interface ContentGeneratorPanelProps {
   isLoading: boolean;
 }
 
-const platformIcons = {
+const platformIcons: Record<ContentPlatform, typeof Camera> = {
   instagram: Camera,
   telegram: Send,
   vk: Hash,

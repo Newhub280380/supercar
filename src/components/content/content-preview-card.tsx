@@ -36,7 +36,7 @@ const platformStyles: Record<ContentPlatform, { border: string; headerBg: string
   },
 };
 
-const platformIcons = {
+const platformIcons: Record<ContentPlatform, typeof Camera> = {
   instagram: Camera,
   telegram: Send,
   vk: Hash,
