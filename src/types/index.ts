@@ -225,7 +225,7 @@ export interface AbTest {
   updatedAt: Date;
 }
 
-export type ContentPlatform = &quot;instagram&quot; | &quot;telegram&quot; | &quot;vk&quot;;
+export type ContentPlatform = "instagram" | "telegram" | "vk";
 
 export type ContentTone = "professional" | "friendly" | "entertaining";
 
