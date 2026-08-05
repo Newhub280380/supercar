@@ -8,9 +8,15 @@ import {
   safetyFilter,
   type ChatMessage,
 } from "@/lib/ai";
+import { logger } from "@/lib/logger";
 import type { SkinType } from "@/types";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
+  const log = logger.scope("api:chat");
+
   try {
     const userId = request.headers.get("x-user-id");
     if (!userId) {
@@ -84,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     const prevMessages: ChatMessage[] = (history[0].messages ?? []).map((m) => ({
       role: m.role as "user" | "assistant" | "system",
-      content: m.content,
+      content: typeof m.content === "string" ? m.content : "",
     }));
 
     const aiResult = await generateAIResponse({
@@ -112,6 +118,11 @@ export async function POST(request: NextRequest) {
       .set({ messages: withReply, updatedAt: new Date() })
       .where(eq(aiConversations.id, activeConversationId));
 
+    log.info("message handled", {
+      conversationId: activeConversationId,
+      usage: aiResult.usage,
+    });
+
     return NextResponse.json({
       conversationId: activeConversationId,
       reply: aiResult.message,
@@ -120,7 +131,7 @@ export async function POST(request: NextRequest) {
       usage: aiResult.usage,
     });
   } catch (error) {
-    console.error("Chat send message error:", error);
+    log.error("chat send message error", error);
     return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
   }
 }

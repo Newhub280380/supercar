@@ -14,6 +14,7 @@ interface ChatMessagesProps {
   relatedProcedures?: string[];
   relatedFAQ?: string[];
   onClearError: () => void;
+  onSuggestionClick?: (question: string) => void;
 }
 
 export const ChatMessages = memo(function ChatMessages({
@@ -24,6 +25,7 @@ export const ChatMessages = memo(function ChatMessages({
   relatedProcedures,
   relatedFAQ,
   onClearError,
+  onSuggestionClick,
 }: ChatMessagesProps) {
   const messagesEndRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -83,16 +85,7 @@ export const ChatMessages = memo(function ChatMessages({
                   key={q}
                   type="button"
                   className="rounded-xl border border-border/60 bg-card px-3 py-2.5 text-left text-xs text-muted-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
-                  onClick={() => {
-                    const input = document.querySelector(
-                      "[data-chat-input]",
-                    ) as HTMLTextAreaElement | null;
-                    if (input) {
-                      input.value = q;
-                      input.focus();
-                      input.dispatchEvent(new Event("input", { bubbles: true }));
-                    }
-                  }}
+                  onClick={() => onSuggestionClick?.(q)}
                 >
                   {q}
                 </button>
@@ -101,13 +94,15 @@ export const ChatMessages = memo(function ChatMessages({
           </div>
         ) : (
           <div className="mx-auto flex max-w-2xl flex-col gap-4">
-            {messages.map((msg, index) => (
-              <ChatMessage
-                key={msg.id}
-                message={msg}
-                isLatest={index === messages.length - 1}
-              />
-            ))}
+            {messages
+              .filter((msg) => msg.role === "user" || msg.content.length > 0)
+              .map((msg, index, filtered) => (
+                <ChatMessage
+                  key={msg.id}
+                  message={msg}
+                  isLatest={index === filtered.length - 1}
+                />
+              ))}
 
             {isLoading && (
               <div className="flex gap-3 animate-fade-in">

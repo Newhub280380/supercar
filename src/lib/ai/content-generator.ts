@@ -6,62 +6,63 @@ import type {
 } from "@/types";
 import { getTemplate } from "./content-templates";
 import { procedures } from "./knowledge-base";
-
-interface OpenAIChatResponse {
-  choices: { message: { content: string | null } }[];
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-}
+import { createChatCompletion, extractReply, isAIEnabled } from "./openai-client";
+import { logger } from "@/lib/logger";
 
 const CONTENT_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_CONTENT_REQUESTS = 20;
+const CONTENT_RATE_LIMIT_MAX_USERS = 10_000;
 const contentRateLimitMap = new Map<string, number[]>();
 
 export function checkContentRateLimit(userId: string): boolean {
   const now = Date.now();
-  const requests = contentRateLimitMap.get(userId) ?? [];
-  const recent = requests.filter((t) => now - t < CONTENT_RATE_LIMIT_WINDOW_MS);
-  if (recent.length >= MAX_CONTENT_REQUESTS) return false;
-  recent.push(now);
-  contentRateLimitMap.set(userId, recent);
+  const requests = (contentRateLimitMap.get(userId) ?? []).filter(
+    (t) => now - t < CONTENT_RATE_LIMIT_WINDOW_MS,
+  );
+
+  if (contentRateLimitMap.size > CONTENT_RATE_LIMIT_MAX_USERS) {
+    contentRateLimitMap.clear();
+  }
+
+  if (requests.length >= MAX_CONTENT_REQUESTS) {
+    contentRateLimitMap.set(userId, requests);
+    return false;
+  }
+
+  requests.push(now);
+  contentRateLimitMap.set(userId, requests);
   return true;
 }
 
 async function callOpenAIForContent(
-  systemPrompt: string,
+  _systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const log = logger.scope("ai:content");
 
-  if (!apiKey) {
-    return buildFallbackContent(systemPrompt);
+  if (!isAIEnabled()) {
+    return buildFallbackContent(userPrompt);
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
+  try {
+    const completion = await createChatCompletion({
       messages: [
         {
           role: "system",
-          content: `Ты опытный SMM-менеджер и копирайтер для косметологической индустрии. Создаёшь качественный маркетинговый контент, который привлекает клиентов. Отвечай только на русском языке. Используй базу знаний о процедурах для точности.`,
+          content:
+            "Ты опытный SMM-менеджер и копирайтер для косметологической индустрии. Создаёшь качественный маркетинговый контент, который привлекает клиентов. Отвечай только на русском языке. Используй базу знаний о процедурах для точности.",
         },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.8,
-      max_tokens: 1500,
-    }),
-  });
+      maxTokens: 1500,
+    });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status}`);
+    return extractReply(completion);
+  } catch (error) {
+    log.error("content generation failed, using fallback", error);
+    return buildFallbackContent(userPrompt);
   }
-
-  const data = (await response.json()) as OpenAIChatResponse;
-  return data.choices[0]?.message?.content ?? buildFallbackContent(userPrompt);
 }
 
 function buildFallbackContent(prompt: string): string {

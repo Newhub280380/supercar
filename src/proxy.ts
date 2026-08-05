@@ -23,7 +23,7 @@ async function verifyToken(token: string): Promise<{ sub: string; role: string }
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   for (const prefix of API_PROTECTED_PREFIXES) {
@@ -96,7 +96,7 @@ async function handleAuthPage(request: NextRequest) {
   const session = await verifyToken(token);
   if (!session) return NextResponse.next();
 
-  if (session.role === "client" && !session.role) {
+  if (session.role === "client") {
     return NextResponse.next();
   }
 

@@ -8,8 +8,7 @@ export function useLandingContent() {
   const [data, setData] = useState<LandingContent | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const fetchLanding = useCallback(async () => {
     try {
       const res = await fetch("/api/convoy", {
         method: "POST",
@@ -33,9 +32,16 @@ export function useLandingContent() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    await fetchLanding();
+  }, [fetchLanding]);
 
-  return { data, loading, refresh: load };
+  useEffect(() => {
+    queueMicrotask(() => {
+      void fetchLanding();
+    });
+  }, [fetchLanding]);
+
+  return { data, loading, refresh };
 }

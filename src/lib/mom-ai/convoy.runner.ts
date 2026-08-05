@@ -1,5 +1,4 @@
 import { CONVOY_STEPS } from "./convoy.config";
-import { generateGermanPosts } from "./german-posts";
 import { generateMomImages } from "./image-generator";
 import { generateLandingContent } from "./landing-generator";
 
