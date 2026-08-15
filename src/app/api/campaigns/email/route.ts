@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emailCampaignsData } from "@/lib/promotion-mock-data";
+import { requireRole } from "@/lib/auth";
 
-export async function GET(_request: NextRequest) {
+const ALLOWED_ROLES = ["cosmetologist", "admin"];
+
+export async function GET() {
+  const { response } = await requireRole(ALLOWED_ROLES);
+  if (response) return response;
+
   return NextResponse.json({ campaigns: emailCampaignsData });
 }
 
 export async function POST(request: NextRequest) {
+  const { response } = await requireRole(ALLOWED_ROLES);
+  if (response) return response;
+
   const body = await request.json();
   const newCampaign = {
     id: `ec-${Date.now()}`,

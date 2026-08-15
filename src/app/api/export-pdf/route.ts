@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { aiConversations } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { requireSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id");
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, response } = await requireSession();
+    if (response) return response;
+    const userId = session.sub;
 
     const body = await request.json();
     const { conversationId } = body as { conversationId?: string };

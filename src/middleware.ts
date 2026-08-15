@@ -7,20 +7,31 @@ const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/chat"];
 const AUTH_PREFIXES = ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/auth/role-selection"];
 const API_AUTH_PREFIX = "/api/auth";
 const API_PROTECTED_PREFIXES = ["/api/chat", "/api/conversations", "/api/export-pdf"];
-const PUBLIC_PREFIXES = ["/", "/about", "/pricing", "/contact"];
 
 const ROLE_PATH_MAP: Record<string, string[]> = {
   "/dashboard": ["cosmetologist", "admin"],
 };
 
 async function verifyToken(token: string): Promise<{ sub: string; role: string } | null> {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) return null;
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || "");
+    const secret = new TextEncoder().encode(jwtSecret);
     const { payload } = await jwtVerify(token, secret);
     return { sub: payload.sub as string, role: payload.role as string };
   } catch {
     return null;
   }
+}
+
+const IDENTITY_HEADERS = ["x-user-id", "x-user-role"];
+
+// Drop client-supplied identity headers so route handlers can never read a spoofed
+// identity; handlers derive the user from the verified session cookie instead.
+function nextWithSanitizedHeaders(request: NextRequest) {
+  const headers = new Headers(request.headers);
+  for (const header of IDENTITY_HEADERS) headers.delete(header);
+  return NextResponse.next({ request: { headers } });
 }
 
 export async function middleware(request: NextRequest) {
@@ -48,16 +59,10 @@ export async function middleware(request: NextRequest) {
     if (pathname === "/api/auth/me" || pathname === "/api/auth/profile" || pathname === "/api/auth/role") {
       return handleApiAuth(request);
     }
-    return NextResponse.next();
+    return nextWithSanitizedHeaders(request);
   }
 
-  for (const prefix of PUBLIC_PREFIXES) {
-    if (pathname === prefix) {
-      return NextResponse.next();
-    }
-  }
-
-  return NextResponse.next();
+  return nextWithSanitizedHeaders(request);
 }
 
 async function handleProtectedRoute(request: NextRequest) {
@@ -83,22 +88,15 @@ async function handleProtectedRoute(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next();
-  response.headers.set("x-user-id", session.sub);
-  response.headers.set("x-user-role", session.role);
-  return response;
+  return nextWithSanitizedHeaders(request);
 }
 
 async function handleAuthPage(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (!token) return NextResponse.next();
+  if (!token) return nextWithSanitizedHeaders(request);
 
   const session = await verifyToken(token);
-  if (!session) return NextResponse.next();
-
-  if (session.role === "client" && !session.role) {
-    return NextResponse.next();
-  }
+  if (!session) return nextWithSanitizedHeaders(request);
 
   return NextResponse.redirect(new URL("/", request.url));
 }
@@ -114,10 +112,7 @@ async function handleApiAuth(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const response = NextResponse.next();
-  response.headers.set("x-user-id", session.sub);
-  response.headers.set("x-user-role", session.role);
-  return response;
+  return nextWithSanitizedHeaders(request);
 }
 
 export const config = {

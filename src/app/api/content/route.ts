@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateContent, generateMockContent, checkContentRateLimit } from "@/lib/ai/content-generator";
 import type { ContentGenerationRequest, ContentPlatform, ContentTemplateType, ContentTone } from "@/types";
+import { requireSession } from "@/lib/auth";
 
 const VALID_PLATFORMS: ContentPlatform[] = ["instagram", "telegram", "vk"];
 const VALID_TEMPLATE_TYPES: ContentTemplateType[] = [
@@ -19,7 +20,9 @@ const VALID_TONES: ContentTone[] = ["professional", "friendly", "entertaining"];
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get("x-user-id") || "anonymous";
+    const { session, response } = await requireSession();
+    if (response) return response;
+    const userId = session.sub;
 
     if (!checkContentRateLimit(userId)) {
       return NextResponse.json(

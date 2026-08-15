@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runConvoy } from "@/lib/mom-ai/convoy.runner";
+import { requireRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,9 @@ export async function POST(request: NextRequest) {
       const content = await generateLandingContent([], []);
       return NextResponse.json({ landing: content });
     }
+
+    const { response } = await requireRole(["cosmetologist", "admin"]);
+    if (response) return response;
 
     const result = await runConvoy();
     return NextResponse.json({ summary: result.summary });

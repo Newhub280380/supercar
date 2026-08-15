@@ -2,6 +2,8 @@ export { hashPassword, verifyPassword, validatePasswordStrength } from "./passwo
 export { signToken, verifyToken, AUTH_COOKIE_NAME } from "./jwt";
 export type { TokenPayload } from "./jwt";
 export { getSession, getSessionOrThrow, isRoleAuthorized } from "./session";
+export { requireSession, requireRole } from "./api";
+export { checkAuthRateLimit, getClientIp } from "./rate-limit";
 export {
   AUTH_PATHS,
   PUBLIC_PATHS,

@@ -2,14 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { hashPassword, validatePasswordStrength } from "@/lib/auth";
+import {
+  hashPassword,
+  validatePasswordStrength,
+  checkAuthRateLimit,
+  getClientIp,
+} from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    if (!checkAuthRateLimit(`reset-password:${getClientIp(request)}`, 10)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const { token, password } = body;
 
-    if (!token || !password) {
+    if (typeof token !== "string" || typeof password !== "string" || !token || !password) {
       return NextResponse.json(
         { error: "Token and password are required" },
         { status: 400 },
