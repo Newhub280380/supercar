@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emailCampaignsData } from "@/lib/promotion-mock-data";
+import { newDraftCampaign } from "@/lib/campaigns";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   return NextResponse.json({ campaigns: emailCampaignsData });
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const newCampaign = {
-    id: `ec-${Date.now()}`,
-    ...body,
-    status: "draft",
-    recipientCount: body.recipientCount || 0,
-    sentAt: null,
-    metrics: null,
-    createdAt: new Date().toISOString().split("T")[0],
-  };
-  return NextResponse.json({ campaign: newCampaign }, { status: 201 });
+  return NextResponse.json({ campaign: newDraftCampaign("ec", body) }, { status: 201 });
 }

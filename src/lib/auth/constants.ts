@@ -1,4 +1,6 @@
 export const AUTH_COOKIE_NAME = "auth_token";
+export const USER_ID_HEADER = "x-user-id";
+export const USER_ROLE_HEADER = "x-user-role";
 export const JWT_EXPIRES_IN = "7d";
 export const REFRESH_TOKEN_EXPIRES_IN = "30d";
 export const PASSWORD_RESET_EXPIRES_MINUTES = 60;

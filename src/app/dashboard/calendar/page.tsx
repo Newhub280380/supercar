@@ -16,6 +16,7 @@ import {
   APPOINTMENT_STATUS_LABELS,
 } from "@/lib/mock-data";
 import type { AppointmentStatus } from "@/types";
+import { formatDate, toIsoDate } from "@/lib/format";
 
 type ViewMode = "week" | "day" | "list";
 
@@ -65,12 +66,8 @@ function getWeekStart(date: Date): Date {
   return d;
 }
 
-function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
 function formatDayLabel(date: Date): string {
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  return formatDate(date, "dayMonth");
 }
 
 function parseTime(time: string): number {
@@ -123,7 +120,7 @@ export default function CalendarPage() {
   const handleToday = () => setCurrentDate(new Date());
 
   const getAppointmentsForDay = (date: Date, hour: number) => {
-    const dateStr = formatDate(date);
+    const dateStr = toIsoDate(date);
     return appointmentsData.filter(
       (a) =>
         a.date === dateStr &&
@@ -134,7 +131,7 @@ export default function CalendarPage() {
   };
 
   const allAppointmentsForDay = (date: Date) => {
-    const dateStr = formatDate(date);
+    const dateStr = toIsoDate(date);
     return appointmentsData.filter((a) => a.date === dateStr);
   };
 
@@ -146,7 +143,7 @@ export default function CalendarPage() {
         <div>
           <h1 className="font-heading text-2xl font-bold">Календарь записей</h1>
           <p className="text-sm text-muted-foreground">
-            {currentDate.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}
+            {formatDate(currentDate, "monthYear")}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -241,14 +238,14 @@ export default function CalendarPage() {
                   key={i}
                   className={cx(
                     "flex flex-col items-center gap-0.5 p-2 border-l border-border/50",
-                    formatDate(d) === formatDate(new Date()) && "bg-primary/5",
+                    toIsoDate(d) === toIsoDate() && "bg-primary/5",
                   )}
                 >
                   <span className="text-[10px] font-medium text-muted-foreground">{WEEKDAYS[i]}</span>
                   <span
                     className={cx(
                       "flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                      formatDate(d) === formatDate(new Date())
+                      toIsoDate(d) === toIsoDate()
                         ? "bg-primary text-primary-foreground"
                         : "",
                     )}
@@ -358,11 +355,7 @@ function AppointmentList({ appointments }: { appointments: typeof appointmentsDa
           <div className="sticky top-0 z-10 flex items-center gap-2 bg-card py-2">
             <CalendarIcon className="size-3.5 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {new Date(date).toLocaleDateString("ru-RU", {
-                weekday: "short",
-                day: "numeric",
-                month: "long",
-              })}
+              {formatDate(date, "weekdayShort")}
             </span>
             <Badge variant="secondary" className="text-[10px]">{appts.length}</Badge>
           </div>
@@ -415,7 +408,7 @@ function AppointmentList({ appointments }: { appointments: typeof appointmentsDa
 }
 
 function DayTimeline({ date }: { date: Date }) {
-  const dateStr = formatDate(date);
+  const dateStr = toIsoDate(date);
   const dayAppts = appointmentsData
     .filter((a) => a.date === dateStr)
     .sort((a, b) => a.time.localeCompare(b.time));

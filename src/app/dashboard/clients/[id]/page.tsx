@@ -32,6 +32,7 @@ import {
   APPOINTMENT_STATUS_LABELS,
 } from "@/lib/mock-data";
 import type { AppointmentStatus } from "@/types";
+import { formatDate } from "@/lib/format";
 
 const STATUS_COLORS: Record<AppointmentStatus, string> = {
   pending: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
@@ -161,7 +162,7 @@ export default function ClientDetailPage() {
               </div>
             </div>
             <div className="text-2xl font-bold">
-              {new Date(client.lastVisit).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+              {formatDate(client.lastVisit, "dayMonth")}
             </div>
             <div className="text-xs text-muted-foreground">Последний визит</div>
           </CardContent>
@@ -204,11 +205,7 @@ export default function ClientDetailPage() {
                             </Badge>
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(apt.date).toLocaleDateString("ru-RU", {
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            })}
+                            {formatDate(apt.date, "long")}
                             {" · "}{apt.time}–{apt.endTime}
                           </div>
                           {apt.notes && (
@@ -244,7 +241,7 @@ export default function ClientDetailPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Регистрация</span>
                 <span className="font-medium">
-                  {new Date(client.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
+                  {formatDate(client.createdAt, "dayMonthYear")}
                 </span>
               </div>
             </CardContent>

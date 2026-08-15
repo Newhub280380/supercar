@@ -1,6 +1,7 @@
+import { downloadText, withExtension } from "./download";
+
 export function exportAsTXT(content: string, filename: string): void {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  downloadBlob(blob, filename.endsWith(".txt") ? filename : `${filename}.txt`);
+  downloadText(content, withExtension(filename, "txt"), "text/plain;charset=utf-8");
 }
 
 export function exportAsHTML(content: string, filename: string): void {
@@ -11,34 +12,7 @@ export function exportAsHTML(content: string, filename: string): void {
 </head>
 <body>${markdownToHTML(content)}</body>
 </html>`;
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  downloadBlob(blob, filename.endsWith(".html") ? filename : `${filename}.html`);
-}
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-export function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard) {
-    return navigator.clipboard.writeText(text);
-  }
-  const ta = document.createElement("textarea");
-  ta.value = text;
-  ta.style.position = "fixed";
-  ta.style.left = "-9999px";
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand("copy");
-  document.body.removeChild(ta);
-  return Promise.resolve();
+  downloadText(html, withExtension(filename, "html"), "text/html;charset=utf-8");
 }
 
 function markdownToHTML(md: string): string {

@@ -19,6 +19,7 @@ import {
   type SeoPageItem,
 } from "@/lib/promotion-mock-data";
 import { auditSeoPages } from "@/lib/promotion-utils";
+import { downloadText } from "@/lib/download";
 
 const SEVERITY_CONFIG = {
   error: {
@@ -55,26 +56,12 @@ export default function SeoPage() {
 
   const handleDownloadSitemap = async () => {
     const res = await fetch("/api/seo/sitemap");
-    const xml = await res.text();
-    const blob = new Blob([xml], { type: "application/xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "sitemap.xml";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadText(await res.text(), "sitemap.xml", "application/xml");
   };
 
   const handleDownloadRobots = async () => {
     const res = await fetch("/api/robots.txt");
-    const txt = await res.text();
-    const blob = new Blob([txt], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "robots.txt";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadText(await res.text(), "robots.txt", "text/plain");
   };
 
   return (

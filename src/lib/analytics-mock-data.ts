@@ -1,3 +1,5 @@
+import { formatDate } from "./format";
+
 export interface RevenueDataPoint {
   month: string;
   revenue: number;
@@ -191,7 +193,7 @@ export function generateForecastData(): ForecastDataPoint[] {
   const data: ForecastDataPoint[] = [];
   for (let i = 0; i < 12; i++) {
     const monthIdx = (currentMonth + i) % 12;
-    const monthName = new Date(currentYear, monthIdx).toLocaleDateString("ru-RU", { month: "short" });
+    const monthName = formatDate(new Date(currentYear, monthIdx), "month");
     const actualRevenue = monthlyRevenueData[i]?.revenue ?? null;
 
     if (i < 6) {

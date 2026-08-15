@@ -23,6 +23,7 @@ import {
 } from "@/lib/promotion-mock-data";
 import type { SmsCampaignStatus } from "@/types";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
 
 const STATUS_COLORS: Record<SmsCampaignStatus, string> = {
   draft: "bg-slate-100 text-slate-800 dark:bg-slate-950/40 dark:text-slate-300",
@@ -152,13 +153,13 @@ function SmsCampaignCard({ campaign }: { campaign: SmsCampaignItem }) {
             {campaign.sentAt && (
               <span className="flex items-center gap-1">
                 <CheckCircle className="size-3" />
-                {new Date(campaign.sentAt).toLocaleDateString("ru-RU")}
+                {formatDate(campaign.sentAt)}
               </span>
             )}
             {campaign.scheduledAt && (
               <span className="flex items-center gap-1">
                 <Clock className="size-3" />
-                {new Date(campaign.scheduledAt).toLocaleDateString("ru-RU")}
+                {formatDate(campaign.scheduledAt)}
               </span>
             )}
           </div>

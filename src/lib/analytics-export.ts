@@ -5,28 +5,9 @@ import type {
   AIInsight,
   BusinessHealth,
 } from "./analytics-mock-data";
-
-function escapeCsv(value: string | number | null | undefined): string {
-  if (value == null) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function formatNumber(n: number): string {
-  return n.toLocaleString("ru-RU");
-}
+import { csvRow, downloadCsv } from "./csv";
+import { downloadText, printHtml } from "./download";
+import { formatCurrency, formatDate } from "./format";
 
 export function exportAnalyticsCsv(
   revenue: RevenueDataPoint[],
@@ -38,8 +19,8 @@ export function exportAnalyticsCsv(
 
   lines.push("=== КЛЮЧЕВЫЕ МЕТРИКИ ===");
   lines.push("Метрика,Значение");
-  lines.push(`LTV клиента,₽${formatNumber(metrics.ltv)}`);
-  lines.push(`Средний чек,₽${formatNumber(metrics.avgCheck)}`);
+  lines.push(`LTV клиента,${formatCurrency(metrics.ltv)}`);
+  lines.push(`Средний чек,${formatCurrency(metrics.avgCheck)}`);
   lines.push(`Конверсия,${metrics.conversionRate}%`);
   lines.push(`Retention rate,${metrics.retentionRate}%`);
   lines.push(`Рост дохода,${metrics.revenueGrowth}%`);
@@ -49,19 +30,17 @@ export function exportAnalyticsCsv(
   lines.push("=== ДОХОД ПО МЕСЯЦАМ ===");
   lines.push("Месяц,Доход (₽),Записи,Новые клиенты");
   for (const d of revenue) {
-    lines.push([d.month, d.revenue, d.appointments, d.newClients].map(escapeCsv).join(","));
+    lines.push(csvRow([d.month, d.revenue, d.appointments, d.newClients]));
   }
   lines.push("");
 
   lines.push("=== ПОПУЛЯРНОСТЬ УСЛУГ ===");
   lines.push("Услуга,Категория,Кол-во записей,Доход (₽)");
   for (const s of services) {
-    lines.push([s.name, s.category, s.count, s.revenue].map(escapeCsv).join(","));
+    lines.push(csvRow([s.name, s.category, s.count, s.revenue]));
   }
 
-  const csvContent = "\uFEFF" + lines.join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  downloadBlob(blob, `${filename}.csv`);
+  downloadCsv(lines.join("\n"), filename);
 }
 
 function buildHtmlContent(
@@ -108,7 +87,7 @@ function buildHtmlContent(
 <body>
   <div class="header">
     <h1>Аналитический отчёт</h1>
-    <span class="date">${new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}</span>
+    <span class="date">${formatDate(new Date(), "long")}</span>
   </div>
 
   <h2>Здоровье бизнеса</h2>
@@ -120,11 +99,11 @@ function buildHtmlContent(
   <h2>Ключевые метрики</h2>
   <div class="metrics-grid">
     <div class="metric-card">
-      <div class="metric-value">₽${formatNumber(metrics.ltv)}</div>
+      <div class="metric-value">${formatCurrency(metrics.ltv)}</div>
       <div class="metric-label">LTV клиента</div>
     </div>
     <div class="metric-card">
-      <div class="metric-value">₽${formatNumber(metrics.avgCheck)}</div>
+      <div class="metric-value">${formatCurrency(metrics.avgCheck)}</div>
       <div class="metric-label">Средний чек</div>
     </div>
     <div class="metric-card">
@@ -149,7 +128,7 @@ function buildHtmlContent(
   <table>
     <thead><tr><th>Месяц</th><th>Доход</th><th>Записи</th><th>Новые клиенты</th></tr></thead>
     <tbody>
-      ${revenue.map(d => `<tr><td>${d.month}</td><td>₽${formatNumber(d.revenue)}</td><td>${d.appointments}</td><td>${d.newClients}</td></tr>`).join("")}
+      ${revenue.map(d => `<tr><td>${d.month}</td><td>${formatCurrency(d.revenue)}</td><td>${d.appointments}</td><td>${d.newClients}</td></tr>`).join("")}
     </tbody>
   </table>
 
@@ -157,7 +136,7 @@ function buildHtmlContent(
   <table>
     <thead><tr><th>Услуга</th><th>Категория</th><th>Записей</th><th>Доход</th></tr></thead>
     <tbody>
-      ${services.map(s => `<tr><td>${s.name}</td><td>${s.category}</td><td>${s.count}</td><td>₽${formatNumber(s.revenue)}</td></tr>`).join("")}
+      ${services.map(s => `<tr><td>${s.name}</td><td>${s.category}</td><td>${s.count}</td><td>${formatCurrency(s.revenue)}</td></tr>`).join("")}
     </tbody>
   </table>
 
@@ -180,21 +159,7 @@ export function exportAnalyticsPdf(
   insights: AIInsight[],
 ) {
   const html = buildHtmlContent(revenue, services, metrics, health, insights);
-  printReport(html);
-}
-
-function printReport(html: string) {
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
-    downloadBlob(blob, "analytics-report.html");
-    return;
-  }
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.onload = () => {
-    printWindow.print();
-  };
+  printHtml(html, "analytics-report");
 }
 
 export function exportAnalyticsExcel(
@@ -238,6 +203,5 @@ export function exportAnalyticsExcel(
   xml += `</Table></Worksheet>`;
   xml += `</Workbook>`;
 
-  const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8;" });
-  downloadBlob(blob, "analytics-report.xls");
+  downloadText(xml, "analytics-report.xls", "application/vnd.ms-excel;charset=utf-8;");
 }

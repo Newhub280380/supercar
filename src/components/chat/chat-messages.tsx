@@ -4,6 +4,7 @@ import { memo, useState, useCallback, useEffect } from "react";
 import type { Message } from "@/hooks/use-chat";
 import { ChatMessage } from "./chat-message";
 import { cn } from "@/lib/utils";
+import { downloadBlob } from "@/lib/download";
 import { Loader2, AlertCircle, FileDown, X } from "lucide-react";
 
 interface ChatMessagesProps {
@@ -48,13 +49,7 @@ export const ChatMessages = memo(function ChatMessages({
       body: JSON.stringify({ conversationId }),
     });
     if (res.ok) {
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `recommendations-${conversationId}.html`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(await res.blob(), `recommendations-${conversationId}.html`);
     }
   };
 

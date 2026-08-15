@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { generateRobotsTxt } from "@/lib/promotion-utils";
+import { getPublicBaseUrl } from "@/lib/env";
 
-export async function GET(_request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
-  const txt = generateRobotsTxt(baseUrl);
+export async function GET() {
+  const txt = generateRobotsTxt(getPublicBaseUrl());
   return new NextResponse(txt, {
     headers: {
       "Content-Type": "text/plain",

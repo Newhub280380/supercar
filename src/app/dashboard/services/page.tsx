@@ -32,6 +32,7 @@ import {
 } from "@/lib/mock-data";
 import { exportServicesCsv } from "@/lib/csv-export";
 import type { ServiceItem } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/format";
 
 interface ServiceFormData {
   name: string;
@@ -174,7 +175,7 @@ export default function ServicesPage() {
         <div>
           <h1 className="font-heading text-2xl font-bold">Услуги</h1>
           <p className="text-sm text-muted-foreground">
-            {services.length} услуг · Доход: ₽{totalRevenue.toLocaleString("ru-RU")}
+            {services.length} услуг · Доход: {formatCurrency(totalRevenue)}
           </p>
         </div>
         <div className="flex items-center gap-2">

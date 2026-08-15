@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { copyToClipboard, exportAsTXT, exportAsHTML, getWordCount, getCharCount } from "@/lib/export-utils";
+import { exportAsTXT, exportAsHTML, getWordCount, getCharCount } from "@/lib/export-utils";
+import { copyToClipboard } from "@/lib/download";
 import type { ContentGenerationResult, ContentPlatform } from "@/types";
 import { useState } from "react";
 

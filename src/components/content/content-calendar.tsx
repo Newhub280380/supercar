@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ContentPlatform, ContentTemplateType } from "@/types";
 import { useState, useMemo } from "react";
+import { toIsoDate } from "@/lib/format";
 
 interface CalendarEntry {
   id: string;
@@ -69,7 +70,7 @@ export function ContentCalendar() {
       title: "Акция на биоревитализацию",
       platform: "instagram",
       templateType: "promotion",
-      date: new Date(currentYear, currentMonth, Math.min(today.getDate() + 2, 28)).toISOString().split("T")[0],
+      date: toIsoDate(new Date(currentYear, currentMonth, Math.min(today.getDate() + 2, 28))),
       status: "scheduled",
     },
     {
@@ -77,7 +78,7 @@ export function ContentCalendar() {
       title: "Советы по зимнему уходу",
       platform: "telegram",
       templateType: "care_tips",
-      date: new Date(currentYear, currentMonth, Math.min(today.getDate() + 5, 28)).toISOString().split("T")[0],
+      date: toIsoDate(new Date(currentYear, currentMonth, Math.min(today.getDate() + 5, 28))),
       status: "draft",
     },
     {
@@ -85,7 +86,7 @@ export function ContentCalendar() {
       title: "Кейс: омоложение после 40",
       platform: "vk",
       templateType: "review",
-      date: new Date(currentYear, currentMonth, Math.min(today.getDate() + 8, 28)).toISOString().split("T")[0],
+      date: toIsoDate(new Date(currentYear, currentMonth, Math.min(today.getDate() + 8, 28))),
       status: "published",
     },
   ]);
@@ -159,7 +160,7 @@ export function ContentCalendar() {
             </div>
           ))}
           {days.map((day, i) => {
-            const dateStr = day.toISOString().split("T")[0];
+            const dateStr = toIsoDate(day);
             const dayEntries = entriesByDate.get(dateStr) ?? [];
             const current = isToday(day);
 
