@@ -44,6 +44,7 @@ const SEVERITY_CONFIG = {
 export default function SeoPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAudit, setShowAudit] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const filteredPages = seoPagesData.filter(
     (page) =>
@@ -53,29 +54,36 @@ export default function SeoPage() {
 
   const auditResult = auditSeoPages(seoPagesData);
 
-  const handleDownloadSitemap = async () => {
-    const res = await fetch("/api/seo/sitemap");
-    const xml = await res.text();
-    const blob = new Blob([xml], { type: "application/xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "sitemap.xml";
-    a.click();
-    URL.revokeObjectURL(url);
+  const download = async (
+    endpoint: string,
+    filename: string,
+    mimeType: string,
+  ) => {
+    try {
+      const res = await fetch(endpoint);
+      if (!res.ok) {
+        throw new Error(`Failed to download ${filename}: ${res.status}`);
+      }
+      const text = await res.text();
+      const blob = new Blob([text], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      setDownloadError(null);
+    } catch (err) {
+      console.error(`Failed to download ${filename}:`, err);
+      setDownloadError(`Не удалось скачать ${filename}`);
+    }
   };
 
-  const handleDownloadRobots = async () => {
-    const res = await fetch("/api/robots.txt");
-    const txt = await res.text();
-    const blob = new Blob([txt], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "robots.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const handleDownloadSitemap = () =>
+    download("/api/seo/sitemap", "sitemap.xml", "application/xml");
+
+  const handleDownloadRobots = () =>
+    download("/api/robots.txt", "robots.txt", "text/plain");
 
   return (
     <div className="space-y-6">
@@ -104,6 +112,13 @@ export default function SeoPage() {
           </Button>
         </div>
       </div>
+
+      {downloadError && (
+        <div className="bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+          <AlertCircle className="size-4 shrink-0" />
+          {downloadError}
+        </div>
+      )}
 
       {showAudit && (
         <Card>

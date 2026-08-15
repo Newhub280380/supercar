@@ -45,12 +45,17 @@ export function useChat() {
   const fetchConversations = useCallback(async () => {
     try {
       const res = await fetch("/api/conversations");
-      if (res.ok) {
-        const data = await res.json();
-        setState((s) => ({ ...s, conversations: data.conversations }));
+      if (!res.ok) {
+        throw new Error(`Failed to load conversations: ${res.status}`);
       }
-    } catch {
-      // ignore
+      const data = await res.json();
+      setState((s) => ({ ...s, conversations: data.conversations }));
+    } catch (err) {
+      console.error("Failed to load conversations:", err);
+      setState((s) => ({
+        ...s,
+        error: "Не удалось загрузить историю диалогов",
+      }));
     }
   }, []);
 
@@ -115,11 +120,12 @@ export function useChat() {
         }
 
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => null);
+          console.error("Chat request failed:", res.status, err);
           setState((s) => ({
             ...s,
             isLoading: false,
-            error: err.error || "Ошибка отправки",
+            error: err?.error || "Ошибка отправки",
             messages: s.messages.filter((m) => m.id !== optimisticMessage.id),
           }));
           return;
@@ -152,6 +158,7 @@ export function useChat() {
         await fetchConversations();
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
+        console.error("Failed to send chat message:", err);
         setState((s) => ({
           ...s,
           isLoading: false,
@@ -172,23 +179,27 @@ export function useChat() {
     }));
   }, []);
 
-  const deleteConversation = useCallback(
-    async (convId: string) => {
-      try {
-        await fetch(`/api/conversations?id=${convId}`, { method: "DELETE" });
-        setState((s) => ({
-          ...s,
-          conversations: s.conversations.filter((c) => c.id !== convId),
-          ...(s.activeConversationId === convId
-            ? { activeConversationId: null, messages: [] }
-            : {}),
-        }));
-      } catch {
-        // ignore
+  const deleteConversation = useCallback(async (convId: string) => {
+    try {
+      const res = await fetch(`/api/conversations?id=${convId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to delete conversation: ${res.status}`);
       }
-    },
-    [],
-  );
+      setState((s) => ({
+        ...s,
+        error: null,
+        conversations: s.conversations.filter((c) => c.id !== convId),
+        ...(s.activeConversationId === convId
+          ? { activeConversationId: null, messages: [] }
+          : {}),
+      }));
+    } catch (err) {
+      console.error("Failed to delete conversation:", err);
+      setState((s) => ({ ...s, error: "Не удалось удалить диалог" }));
+    }
+  }, []);
 
   const setTone = useCallback((tone: "professional" | "friendly") => {
     setState((s) => ({ ...s, tone }));

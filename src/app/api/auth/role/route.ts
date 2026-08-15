@@ -49,7 +49,8 @@ export async function PATCH(request: NextRequest) {
       role: updatedUser.role,
       avatar: updatedUser.avatar,
     });
-  } catch {
+  } catch (error) {
+    console.error("Update role error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

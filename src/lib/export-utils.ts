@@ -36,8 +36,15 @@ export function copyToClipboard(text: string): Promise<void> {
   ta.style.left = "-9999px";
   document.body.appendChild(ta);
   ta.select();
-  document.execCommand("copy");
-  document.body.removeChild(ta);
+  try {
+    if (!document.execCommand("copy")) {
+      return Promise.reject(
+        new Error("Copy command was rejected by the browser"),
+      );
+    }
+  } finally {
+    document.body.removeChild(ta);
+  }
   return Promise.resolve();
 }
 

@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
       { message: "If the email exists, a reset link has been sent" },
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    console.error("Forgot password error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

@@ -17,8 +17,12 @@ interface AuthContextValue {
   user: UserData | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
-  register: (email: string, password: string, name?: string) => Promise<{ error?: string }>;
-  logout: () => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    name?: string,
+  ) => Promise<{ error?: string }>;
+  logout: () => Promise<{ error?: string }>;
   refreshUser: () => Promise<UserData | null>;
 }
 
@@ -36,8 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         return data as UserData;
       }
+      if (res.status !== 401) {
+        console.error("Failed to load current user:", res.status);
+      }
       return null;
-    } catch {
+    } catch (err) {
+      console.error("Failed to load current user:", err);
       return null;
     }
   }, []);
@@ -56,41 +64,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) {
         setUser(data.user);
         return {};
       }
-      return { error: data.error || "Login failed" };
-    } catch {
+      return { error: data?.error || "Login failed" };
+    } catch (err) {
+      console.error("Login request failed:", err);
       return { error: "Network error" };
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name?: string) => {
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUser(data.user);
-        return {};
+  const register = useCallback(
+    async (email: string, password: string, name?: string) => {
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, name }),
+        });
+        const data = await res.json().catch(() => null);
+        if (res.ok && data) {
+          setUser(data.user);
+          return {};
+        }
+        return { error: data?.error || "Registration failed" };
+      } catch (err) {
+        console.error("Registration request failed:", err);
+        return { error: "Network error" };
       }
-      return { error: data.error || "Registration failed" };
-    } catch {
-      return { error: "Network error" };
-    }
-  }, []);
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (!res.ok) {
+        throw new Error(`Logout failed: ${res.status}`);
+      }
       setUser(null);
-    } catch {
-      // ignore
+      return {};
+    } catch (err) {
+      console.error("Logout request failed:", err);
+      return { error: "Failed to log out" };
     }
   }, []);
 
