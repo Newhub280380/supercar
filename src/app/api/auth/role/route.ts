@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getSession, VALID_ROLES } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+
+const SELF_SELECTABLE_ROLES = ["cosmetologist", "client"];
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -14,9 +16,9 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { role } = body;
 
-    if (!role || !VALID_ROLES.includes(role)) {
+    if (!role || !SELF_SELECTABLE_ROLES.includes(role)) {
       return NextResponse.json(
-        { error: "Invalid role. Must be: admin, cosmetologist, or client" },
+        { error: "Invalid role. Must be: cosmetologist or client" },
         { status: 400 },
       );
     }

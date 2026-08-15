@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { smsCampaignsData } from "@/lib/promotion-mock-data";
 import { parseJsonBody } from "@/lib/api-utils";
+import { requireRole } from "@/lib/auth";
 
-export async function GET(_request: NextRequest) {
+const ALLOWED_ROLES = ["cosmetologist", "admin"];
+
+export async function GET() {
+  const { response } = await requireRole(ALLOWED_ROLES);
+  if (response) return response;
+
   return NextResponse.json({ campaigns: smsCampaignsData });
 }
 
 export async function POST(request: NextRequest) {
+  const { response } = await requireRole(ALLOWED_ROLES);
+  if (response) return response;
+
   const { data: body, error } = await parseJsonBody(request);
   if (error) return error;
 

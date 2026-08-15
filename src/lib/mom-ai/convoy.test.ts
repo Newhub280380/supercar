@@ -72,6 +72,6 @@ describe("runConvoy", () => {
 
   it("returns the generated landing content in the summary", async () => {
     const { summary } = await runConvoy();
-    expect(summary.landing.title).toContain("Mom AI Assistant");
+    expect(summary.landing?.title).toContain("Mom AI Assistant");
   });
 });

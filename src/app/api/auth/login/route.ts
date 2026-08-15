@@ -2,17 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyPassword, signToken } from "@/lib/auth";
+import { verifyPassword, signToken, checkAuthRateLimit, getClientIp } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME } from "@/lib/auth";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
+    if (!checkAuthRateLimit(`login:${getClientIp(request)}`, 10)) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 },

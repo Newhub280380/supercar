@@ -14,9 +14,16 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { name, phone, avatar, settings } = body;
 
+    if (avatar !== undefined && avatar !== null && !isSafeAvatarUrl(avatar)) {
+      return NextResponse.json(
+        { error: "Avatar must be a relative path or an https URL" },
+        { status: 400 },
+      );
+    }
+
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (name !== undefined) updateData.name = name?.trim() || null;
-    if (phone !== undefined) updateData.phone = phone?.trim() || null;
+    if (name !== undefined) updateData.name = typeof name === "string" ? name.trim() || null : null;
+    if (phone !== undefined) updateData.phone = typeof phone === "string" ? phone.trim() || null : null;
     if (avatar !== undefined) updateData.avatar = avatar || null;
     if (settings !== undefined) updateData.settings = settings;
 
@@ -105,4 +112,11 @@ export async function PATCH(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+function isSafeAvatarUrl(avatar: unknown): boolean {
+  if (typeof avatar !== "string") return false;
+  if (avatar === "") return true;
+  if (avatar.startsWith("/") && !avatar.startsWith("//")) return true;
+  return /^https:\/\//i.test(avatar);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runConvoy } from "@/lib/mom-ai/convoy.runner";
 import { parseJsonBody } from "@/lib/api-utils";
+import { requireRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,16 +16,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (step === "images") {
-      const { generateMomImages } = await import("@/lib/mom-ai/image-generator");
+      const { generateMomImages } =
+        await import("@/lib/mom-ai/image-generator");
       const images = await generateMomImages([]);
       return NextResponse.json({ images });
     }
 
     if (step === "landing") {
-      const { generateLandingContent } = await import("@/lib/mom-ai/landing-generator");
+      const { generateLandingContent } =
+        await import("@/lib/mom-ai/landing-generator");
       const content = await generateLandingContent([], []);
       return NextResponse.json({ landing: content });
     }
+
+    const { response } = await requireRole(["cosmetologist", "admin"]);
+    if (response) return response;
 
     const result = await runConvoy();
     if (!result.summary.success) {
