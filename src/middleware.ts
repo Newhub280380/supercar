@@ -1,26 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify, errors as joseErrors } from "jose";
 
 const AUTH_COOKIE_NAME = "auth_token";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/chat"];
-const AUTH_PREFIXES = ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/auth/role-selection"];
+const AUTH_PREFIXES = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/role-selection",
+];
 const API_AUTH_PREFIX = "/api/auth";
-const API_PROTECTED_PREFIXES = ["/api/chat", "/api/conversations", "/api/export-pdf"];
+const API_PROTECTED_PREFIXES = [
+  "/api/chat",
+  "/api/conversations",
+  "/api/export-pdf",
+];
 
 const ROLE_PATH_MAP: Record<string, string[]> = {
   "/dashboard": ["cosmetologist", "admin"],
 };
 
-async function verifyToken(token: string): Promise<{ sub: string; role: string } | null> {
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) return null;
+async function verifyToken(
+  token: string,
+): Promise<{ sub: string; role: string } | null> {
+  const rawSecret = process.env.JWT_SECRET;
+  if (!rawSecret) {
+    throw new Error("JWT_SECRET environment variable is required");
+  }
+
   try {
-    const secret = new TextEncoder().encode(jwtSecret);
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(rawSecret),
+    );
     return { sub: payload.sub as string, role: payload.role as string };
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof joseErrors.JOSEError) return null;
+    throw error;
   }
 }
 
@@ -56,7 +74,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith(API_AUTH_PREFIX)) {
-    if (pathname === "/api/auth/me" || pathname === "/api/auth/profile" || pathname === "/api/auth/role") {
+    if (
+      pathname === "/api/auth/me" ||
+      pathname === "/api/auth/profile" ||
+      pathname === "/api/auth/role"
+    ) {
       return handleApiAuth(request);
     }
     return nextWithSanitizedHeaders(request);

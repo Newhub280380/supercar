@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { utmCampaignsData } from "@/lib/promotion-mock-data";
+import { parseJsonBody } from "@/lib/api-utils";
 import { requireRole } from "@/lib/auth";
 
 const ALLOWED_ROLES = ["cosmetologist", "admin"];
+const REQUIRED_FIELDS = ["landingUrl", "source", "medium", "campaign"] as const;
 
 export async function GET() {
   const { response } = await requireRole(ALLOWED_ROLES);
@@ -15,52 +17,49 @@ export async function POST(request: NextRequest) {
   const { response } = await requireRole(ALLOWED_ROLES);
   if (response) return response;
 
-  const body = await request.json();
-  const { landingUrl, source, medium, campaign, term, content } = body as Record<
-    string,
-    unknown
-  >;
+  const { data: body, error } = await parseJsonBody(request);
+  if (error) return error;
 
-  if (typeof landingUrl !== "string" || !isRelativePath(landingUrl)) {
+  const missing = REQUIRED_FIELDS.filter(
+    (field) => typeof body[field] !== "string" || !body[field],
+  );
+  if (missing.length > 0) {
+    return NextResponse.json(
+      { error: `Missing required fields: ${missing.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  const landingUrl = String(body.landingUrl);
+  if (!isRelativePath(landingUrl)) {
     return NextResponse.json(
       { error: "landingUrl must be a relative path starting with /" },
       { status: 400 },
     );
   }
 
-  if (
-    typeof source !== "string" ||
-    typeof medium !== "string" ||
-    typeof campaign !== "string" ||
-    !source.trim() ||
-    !medium.trim() ||
-    !campaign.trim()
-  ) {
-    return NextResponse.json(
-      { error: "source, medium and campaign are required" },
-      { status: 400 },
-    );
-  }
+  const params = new URLSearchParams({
+    utm_source: String(body.source),
+    utm_medium: String(body.medium),
+    utm_campaign: String(body.campaign),
+    ...(typeof body.term === "string" && body.term
+      ? { utm_term: body.term }
+      : {}),
+    ...(typeof body.content === "string" && body.content
+      ? { utm_content: body.content }
+      : {}),
+  });
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
-  const params = new URLSearchParams({
-    utm_source: source,
-    utm_medium: medium,
-    utm_campaign: campaign,
-  });
-  if (typeof term === "string" && term) params.set("utm_term", term);
-  if (typeof content === "string" && content) params.set("utm_content", content);
-
   const generatedUrl = `${baseUrl}${landingUrl}?${params.toString()}`;
-
   const newCampaign = {
     id: `utm-${Date.now()}`,
     landingUrl,
-    source,
-    medium,
-    campaign,
-    term: typeof term === "string" ? term : null,
-    content: typeof content === "string" ? content : null,
+    source: String(body.source),
+    medium: String(body.medium),
+    campaign: String(body.campaign),
+    term: typeof body.term === "string" ? body.term : null,
+    content: typeof body.content === "string" ? body.content : null,
     generatedUrl,
     clickCount: 0,
     conversionCount: 0,

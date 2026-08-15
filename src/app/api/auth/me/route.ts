@@ -46,7 +46,8 @@ export async function GET() {
     }
 
     return NextResponse.json(responseData);
-  } catch {
+  } catch (error) {
+    console.error("Fetch current user error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

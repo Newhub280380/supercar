@@ -42,6 +42,12 @@ export default function DashboardLayout({
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    const { error } = await logout();
+    setLogoutError(error ?? null);
+  };
 
   const initials = (user?.name || "C")
     .split(" ")
@@ -132,10 +138,18 @@ export default function DashboardLayout({
               <Button variant="ghost" size="icon-sm" className="flex-1">
                 <Bell className="size-3.5" />
               </Button>
-              <Button variant="ghost" size="icon-sm" onClick={() => logout()} className="flex-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleLogout}
+                className="flex-1"
+              >
                 <LogOut className="size-3.5" />
               </Button>
             </div>
+          )}
+          {!collapsed && logoutError && (
+            <p className="text-destructive mt-2 text-xs">{logoutError}</p>
           )}
         </div>
       </div>
