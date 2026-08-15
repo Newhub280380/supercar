@@ -51,12 +51,20 @@ export function ContentPreviewCard({
   isLoading,
 }: ContentPreviewCardProps) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const style = platformStyles[platform];
   const PlatformIcon = platformIcons[platform];
 
   const handleCopy = async () => {
-    await copyToClipboard(result.content);
+    try {
+      await copyToClipboard(result.content);
+    } catch (err) {
+      console.error("Failed to copy content to clipboard:", err);
+      setCopyError("Не удалось скопировать текст");
+      return;
+    }
+    setCopyError(null);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -135,6 +143,8 @@ export function ContentPreviewCard({
           Демо-режим. Укажите OPENAI_API_KEY для генерации с помощью AI.
         </div>
       )}
+
+      {copyError && <p className="text-destructive text-xs">{copyError}</p>}
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={handleCopy}>

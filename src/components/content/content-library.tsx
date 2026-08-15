@@ -54,11 +54,19 @@ export function ContentLibrary({ items, onDelete }: ContentLibraryProps) {
 
 function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: string) => void }) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const PlatformIcon = platformIcons[item.platform];
 
   const handleCopy = async () => {
-    await copyToClipboard(item.content);
+    try {
+      await copyToClipboard(item.content);
+    } catch (err) {
+      console.error("Failed to copy content to clipboard:", err);
+      setCopyError("Не удалось скопировать текст");
+      return;
+    }
+    setCopyError(null);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -106,6 +114,9 @@ function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: str
               </button>
             )}
           </div>
+          {copyError && (
+            <p className="text-destructive mt-1 text-[10px]">{copyError}</p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <Button variant="ghost" size="icon-xs" onClick={handleCopy}>
