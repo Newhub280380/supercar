@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runConvoy } from "@/lib/mom-ai/convoy.runner";
+import { parseJsonBody } from "@/lib/api-utils";
 import { withErrorHandling } from "@/lib/api/response";
 
 export const POST = withErrorHandling(
   "Convoy error",
   async (request: NextRequest) => {
-    const body = await request.json().catch(() => ({}));
+    const { data: body, error } = await parseJsonBody(request);
+    if (error) return error;
     const { step } = body;
 
     if (step === "posts") {
@@ -24,6 +26,17 @@ export const POST = withErrorHandling(
     }
 
     const result = await runConvoy();
+    if (!result.summary.success) {
+      const failed = result.summary.steps.filter((s) => !s.success);
+      console.error(
+        "Convoy run finished with failed steps:",
+        failed.map((s) => `${s.stepId}: ${s.error}`).join("; "),
+      );
+      return NextResponse.json(
+        { error: "Convoy failed", summary: result.summary },
+        { status: 500 },
+      );
+    }
     return NextResponse.json({ summary: result.summary });
   },
   "Convoy failed",

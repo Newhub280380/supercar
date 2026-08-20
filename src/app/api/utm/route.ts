@@ -1,16 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { utmCampaignsData } from "@/lib/promotion-mock-data";
+import { parseJsonBody } from "@/lib/api-utils";
 import { getPublicBaseUrl } from "@/lib/env";
 import { toIsoDate } from "@/lib/format";
+
+const REQUIRED_FIELDS = ["landingUrl", "source", "medium", "campaign"] as const;
 
 export async function GET() {
   return NextResponse.json({ campaigns: utmCampaignsData });
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const baseUrl = getPublicBaseUrl();
-  const generatedUrl = `${baseUrl}${body.landingUrl}?utm_source=${body.source}&utm_medium=${body.medium}&utm_campaign=${body.campaign}${body.term ? `&utm_term=${body.term}` : ""}${body.content ? `&utm_content=${body.content}` : ""}`;
+  const { data: body, error } = await parseJsonBody(request);
+  if (error) return error;
+
+  const missing = REQUIRED_FIELDS.filter(
+    (field) => typeof body[field] !== "string" || !body[field],
+  );
+  if (missing.length > 0) {
+    return NextResponse.json(
+      { error: `Missing required fields: ${missing.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  const params = new URLSearchParams({
+    utm_source: String(body.source),
+    utm_medium: String(body.medium),
+    utm_campaign: String(body.campaign),
+    ...(typeof body.term === "string" && body.term
+      ? { utm_term: body.term }
+      : {}),
+    ...(typeof body.content === "string" && body.content
+      ? { utm_content: body.content }
+      : {}),
+  });
+
+  const generatedUrl = `${getPublicBaseUrl()}${String(body.landingUrl)}?${params.toString()}`;
   const newCampaign = {
     id: `utm-${Date.now()}`,
     ...body,

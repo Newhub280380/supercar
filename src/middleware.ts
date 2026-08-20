@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify, errors as joseErrors } from "jose";
 
 const AUTH_COOKIE_NAME = "auth_token";
 
@@ -13,13 +13,23 @@ const ROLE_PATH_MAP: Record<string, string[]> = {
   "/dashboard": ["cosmetologist", "admin"],
 };
 
-async function verifyToken(token: string): Promise<{ sub: string; role: string } | null> {
+async function verifyToken(
+  token: string,
+): Promise<{ sub: string; role: string } | null> {
+  const rawSecret = process.env.JWT_SECRET;
+  if (!rawSecret) {
+    throw new Error("JWT_SECRET environment variable is required");
+  }
+
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || "");
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(rawSecret),
+    );
     return { sub: payload.sub as string, role: payload.role as string };
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof joseErrors.JOSEError) return null;
+    throw error;
   }
 }
 

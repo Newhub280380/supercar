@@ -36,6 +36,7 @@ export const ChatMessages = memo(function ChatMessages({
   );
 
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (messages.length > 0) setShowSuggestions(false);
@@ -43,13 +44,20 @@ export const ChatMessages = memo(function ChatMessages({
 
   const handleExport = async () => {
     if (!conversationId) return;
-    const res = await fetch("/api/export-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/export-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId }),
+      });
+      if (!res.ok) {
+        throw new Error(`Export failed: ${res.status}`);
+      }
       downloadBlob(await res.blob(), `recommendations-${conversationId}.html`);
+      setExportError(null);
+    } catch (err) {
+      console.error("Failed to export conversation:", err);
+      setExportError("Не удалось экспортировать диалог");
     }
   };
 
@@ -124,8 +132,22 @@ export const ChatMessages = memo(function ChatMessages({
         )}
       </div>
 
-      {error && (
+      {exportError && (
         <div className="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          <span className="flex-1">{exportError}</span>
+          <button
+            type="button"
+            onClick={() => setExportError(null)}
+            className="shrink-0 opacity-60 hover:opacity-100"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-destructive/10 text-destructive mx-4 mb-2 flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
           <AlertCircle className="size-4 shrink-0" />
           <span className="flex-1">{error}</span>
           <button
@@ -138,26 +160,30 @@ export const ChatMessages = memo(function ChatMessages({
         </div>
       )}
 
-      {relatedProcedures && relatedProcedures.length > 0 && messages.length > 0 && (
-        <div
-          className={cn(
-            "border-t bg-muted/30 px-4 py-3 transition-all",
-            relatedProcedures.length === 0 && "hidden",
-          )}
-        >
-          <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Связанные процедуры:</span>
-            {relatedProcedures.slice(0, 4).map((name) => (
-              <span
-                key={name}
-                className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary"
-              >
-                {name}
+      {relatedProcedures &&
+        relatedProcedures.length > 0 &&
+        messages.length > 0 && (
+          <div
+            className={cn(
+              "bg-muted/30 border-t px-4 py-3 transition-all",
+              relatedProcedures.length === 0 && "hidden",
+            )}
+          >
+            <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-2">
+              <span className="text-muted-foreground text-xs font-medium">
+                Связанные процедуры:
               </span>
-            ))}
+              {relatedProcedures.slice(0, 4).map((name) => (
+                <span
+                  key={name}
+                  className="bg-primary/10 text-primary rounded-full px-2.5 py-0.5 text-xs"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {(relatedFAQ?.length ?? 0) > 0 && messages.length > 0 && (
         <div className="border-t bg-muted/20 px-4 py-2">

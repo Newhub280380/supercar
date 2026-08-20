@@ -1,3 +1,5 @@
+import type { LandingContent } from "./landing-generator";
+
 export interface ConvoyStep {
   id: string;
   name: string;
@@ -15,12 +17,13 @@ export interface ConvoyResult {
 
 export interface ConvoyRunSummary {
   project: string;
+  success: boolean;
   startedAt: string;
   finishedAt: string;
   steps: ConvoyResult[];
   posts: string[];
   images: string[];
-  landing: { title: string; sections: string[] };
+  landing: LandingContent | null;
 }
 
 export const CONVOY_STEPS: ConvoyStep[] = [

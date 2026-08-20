@@ -9,7 +9,8 @@ export function newDraftCampaign(
     id: `${idPrefix}-${Date.now()}`,
     ...body,
     status: "draft",
-    recipientCount: body.recipientCount || 0,
+    recipientCount:
+      typeof body.recipientCount === "number" ? body.recipientCount : 0,
     sentAt: null,
     metrics: null,
     createdAt: toIsoDate(),

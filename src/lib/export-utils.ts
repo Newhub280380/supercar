@@ -1,5 +1,7 @@
 import { downloadText, withExtension } from "./download";
 
+export { copyToClipboard } from "./download";
+
 export function exportAsTXT(content: string, filename: string): void {
   downloadText(content, withExtension(filename, "txt"), "text/plain;charset=utf-8");
 }

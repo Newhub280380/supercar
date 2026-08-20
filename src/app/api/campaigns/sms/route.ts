@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { smsCampaignsData } from "@/lib/promotion-mock-data";
+import { parseJsonBody } from "@/lib/api-utils";
 import { newDraftCampaign } from "@/lib/campaigns";
 
 export async function GET() {
@@ -7,6 +8,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  return NextResponse.json({ campaign: newDraftCampaign("sms", body) }, { status: 201 });
+  const { data: body, error } = await parseJsonBody(request);
+  if (error) return error;
+
+  return NextResponse.json(
+    { campaign: newDraftCampaign("sms", body) },
+    { status: 201 },
+  );
 }

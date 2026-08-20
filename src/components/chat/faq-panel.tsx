@@ -20,6 +20,7 @@ export const FAQPanel = memo(function FAQPanel({ onAskQuestion }: FAQPanelProps)
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -28,12 +29,15 @@ export const FAQPanel = memo(function FAQPanel({ onAskQuestion }: FAQPanelProps)
           ? `/api/faq?q=${encodeURIComponent(search)}`
           : "/api/faq";
         const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data.items ?? []);
+        if (!res.ok) {
+          throw new Error(`Failed to load FAQ: ${res.status}`);
         }
-      } catch {
-        // ignore
+        const data = await res.json();
+        setItems(data.items ?? []);
+        setError(null);
+      } catch (err) {
+        console.error("Failed to load FAQ:", err);
+        setError("Не удалось загрузить FAQ");
       } finally {
         setLoading(false);
       }
@@ -65,7 +69,11 @@ export const FAQPanel = memo(function FAQPanel({ onAskQuestion }: FAQPanelProps)
       <div className="flex-1 overflow-y-auto px-2 pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <span className="text-xs text-muted-foreground">Загрузка...</span>
+            <span className="text-muted-foreground text-xs">Загрузка...</span>
+          </div>
+        ) : error ? (
+          <div className="text-destructive py-8 text-center text-xs">
+            {error}
           </div>
         ) : items.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
