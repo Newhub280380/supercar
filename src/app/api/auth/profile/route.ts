@@ -1,29 +1,51 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, cosmetologistProfiles, clientPersonalInfos } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withSession } from "@/lib/api/handlers";
+import { badRequest } from "@/lib/api/response";
+import { toUserAccount } from "@/lib/auth/serialize";
+import { pickDefined } from "@/lib/object";
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const PROFILE_FIELDS = [
+  "specializations",
+  "experienceYears",
+  "bio",
+  "workingHours",
+  "isPublic",
+] as const;
+const PERSONAL_INFO_FIELDS = [
+  "skinType",
+  "allergies",
+  "preferences",
+  "medicalConditions",
+] as const;
 
+function isSafeAvatarUrl(avatar: unknown): boolean {
+  if (typeof avatar !== "string") return false;
+  if (avatar === "") return true;
+  if (avatar.startsWith("/") && !avatar.startsWith("//")) return true;
+  return /^https:\/\//i.test(avatar);
+}
+
+function trimmedOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value.trim() || null : null;
+}
+
+export const PATCH = withSession(
+  "Profile update error",
+  async (session, request) => {
     const body = await request.json();
+
     const { name, phone, avatar, settings } = body;
 
     if (avatar !== undefined && avatar !== null && !isSafeAvatarUrl(avatar)) {
-      return NextResponse.json(
-        { error: "Avatar must be a relative path or an https URL" },
-        { status: 400 },
-      );
+      return badRequest("Avatar must be a relative path or an https URL");
     }
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (name !== undefined) updateData.name = typeof name === "string" ? name.trim() || null : null;
-    if (phone !== undefined) updateData.phone = typeof phone === "string" ? phone.trim() || null : null;
+    if (name !== undefined) updateData.name = trimmedOrNull(name);
+    if (phone !== undefined) updateData.phone = trimmedOrNull(phone);
     if (avatar !== undefined) updateData.avatar = avatar || null;
     if (settings !== undefined) updateData.settings = settings;
 
@@ -33,90 +55,40 @@ export async function PATCH(request: NextRequest) {
       .where(eq(users.id, session.sub))
       .returning();
 
-    const response: Record<string, unknown> = {
-      id: updatedUser.id,
-      email: updatedUser.email,
-      name: updatedUser.name,
-      avatar: updatedUser.avatar,
-      role: updatedUser.role,
-      phone: updatedUser.phone,
-      settings: updatedUser.settings,
-    };
+    const response: Record<string, unknown> = toUserAccount(updatedUser);
 
     if (session.role === "cosmetologist" && body.cosmetologistProfile) {
-      const { specializations, experienceYears, bio, workingHours, isPublic } =
-        body.cosmetologistProfile;
-
-      const existing = await db.query.cosmetologistProfiles.findFirst({
-        where: eq(cosmetologistProfiles.userId, session.sub),
-      });
-
-      const profileData: Record<string, unknown> = { updatedAt: new Date() };
-      if (specializations !== undefined) profileData.specializations = specializations;
-      if (experienceYears !== undefined) profileData.experienceYears = experienceYears;
-      if (bio !== undefined) profileData.bio = bio;
-      if (workingHours !== undefined) profileData.workingHours = workingHours;
-      if (isPublic !== undefined) profileData.isPublic = isPublic;
-
-      let profile;
-      if (existing) {
-        [profile] = await db
-          .update(cosmetologistProfiles)
-          .set(profileData)
-          .where(eq(cosmetologistProfiles.userId, session.sub))
-          .returning();
-      } else {
-        [profile] = await db
-          .insert(cosmetologistProfiles)
-          .values({ userId: session.sub, ...profileData })
-          .returning();
-      }
+      const profileData = pickDefined(
+        body.cosmetologistProfile,
+        PROFILE_FIELDS,
+      );
+      const [profile] = await db
+        .insert(cosmetologistProfiles)
+        .values({ userId: session.sub, ...profileData })
+        .onConflictDoUpdate({
+          target: cosmetologistProfiles.userId,
+          set: { ...profileData, updatedAt: new Date() },
+        })
+        .returning();
       response.cosmetologistProfile = profile;
     }
 
     if (session.role === "client" && body.clientPersonalInfo) {
-      const { skinType, allergies, preferences, medicalConditions } =
-        body.clientPersonalInfo;
-
-      const existing = await db.query.clientPersonalInfos.findFirst({
-        where: eq(clientPersonalInfos.userId, session.sub),
-      });
-
-      const infoData: Record<string, unknown> = { updatedAt: new Date() };
-      if (skinType !== undefined) infoData.skinType = skinType;
-      if (allergies !== undefined) infoData.allergies = allergies;
-      if (preferences !== undefined) infoData.preferences = preferences;
-      if (medicalConditions !== undefined) infoData.medicalConditions = medicalConditions;
-
-      let info;
-      if (existing) {
-        [info] = await db
-          .update(clientPersonalInfos)
-          .set(infoData)
-          .where(eq(clientPersonalInfos.userId, session.sub))
-          .returning();
-      } else {
-        [info] = await db
-          .insert(clientPersonalInfos)
-          .values({ userId: session.sub, ...infoData })
-          .returning();
-      }
+      const infoData = pickDefined(
+        body.clientPersonalInfo,
+        PERSONAL_INFO_FIELDS,
+      );
+      const [info] = await db
+        .insert(clientPersonalInfos)
+        .values({ userId: session.sub, ...infoData })
+        .onConflictDoUpdate({
+          target: clientPersonalInfos.userId,
+          set: { ...infoData, updatedAt: new Date() },
+        })
+        .returning();
       response.clientPersonalInfo = info;
     }
 
     return NextResponse.json(response);
-  } catch (error) {
-    console.error("Update profile error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
-
-function isSafeAvatarUrl(avatar: unknown): boolean {
-  if (typeof avatar !== "string") return false;
-  if (avatar === "") return true;
-  if (avatar.startsWith("/") && !avatar.startsWith("//")) return true;
-  return /^https:\/\//i.test(avatar);
-}
+  },
+);

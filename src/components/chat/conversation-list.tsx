@@ -4,6 +4,7 @@ import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Plus, Trash2, Clock } from "lucide-react";
 import type { Conversation } from "@/hooks/use-chat";
+import { formatDate } from "@/lib/format";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -114,5 +115,5 @@ function getTimeAgo(date: Date): string {
   if (hours < 24) return `${hours} ч`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} д`;
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  return formatDate(date, "dayMonth");
 }

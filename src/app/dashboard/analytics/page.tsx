@@ -67,6 +67,7 @@ import {
   exportAnalyticsPdf,
   exportAnalyticsExcel,
 } from "@/lib/analytics-export";
+import { formatCompactCurrency, formatNumber } from "@/lib/format";
 
 const CHART_COLORS = [
   "var(--chart-1)",
@@ -75,16 +76,6 @@ const CHART_COLORS = [
   "var(--chart-4)",
   "var(--chart-5)",
 ];
-
-function formatCurrency(value: number): string {
-  if (value >= 1000000) return `₽${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `₽${(value / 1000).toFixed(0)}k`;
-  return `₽${value.toLocaleString("ru-RU")}`;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString("ru-RU");
-}
 
 function BusinessHealthCard() {
   const health = calculateBusinessHealth();
@@ -350,9 +341,9 @@ function ForecastChart() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="month" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-              <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} tickFormatter={(v) => formatCurrency(v)} />
+              <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} tickFormatter={(v) => formatCompactCurrency(v)} />
               <Tooltip
-                formatter={(value) => [typeof value === "number" ? formatCurrency(value) : "—"]}
+                formatter={(value) => [typeof value === "number" ? formatCompactCurrency(value) : "—"]}
                 contentStyle={{
                   backdropFilter: "blur(8px)",
                   backgroundColor: "var(--popover)",
@@ -444,7 +435,7 @@ function ComparisonSection({ range }: { range: DateRange }) {
       <CardContent>
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Доход", change: revenueChange, current: data.current.revenue, previous: data.previous.revenue, fmt: formatCurrency },
+            { label: "Доход", change: revenueChange, current: data.current.revenue, previous: data.previous.revenue, fmt: formatCompactCurrency },
             { label: "Записи", change: appointmentsChange, current: data.current.appointments, previous: data.previous.appointments, fmt: (v: number) => String(v) },
             { label: "Новые клиенты", change: clientsChange, current: data.current.newClients, previous: data.previous.newClients, fmt: (v: number) => String(v) },
           ].map((m) => (
@@ -463,9 +454,9 @@ function ComparisonSection({ range }: { range: DateRange }) {
             <BarChart data={comparisonChartData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="label" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-              <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} tickFormatter={(v) => formatCurrency(v)} />
+              <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} tickFormatter={(v) => formatCompactCurrency(v)} />
               <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
+                formatter={(value) => formatCompactCurrency(Number(value))}
                 contentStyle={{
                   backdropFilter: "blur(8px)",
                   backgroundColor: "var(--popover)",
@@ -510,7 +501,7 @@ function ServicePopularityChart() {
                   fontSize: "12px",
                 }}
                 formatter={(value, name) => [
-                  name === "count" ? `${value} записей` : formatCurrency(Number(value)),
+                  name === "count" ? `${value} записей` : formatCompactCurrency(Number(value)),
                   name === "count" ? "Записи" : "Доход",
                 ]}
               />
@@ -580,7 +571,7 @@ function ClientSegmentChart() {
           {clientSegments.map((seg) => (
             <div key={seg.segment} className="rounded-lg border border-border/50 p-2">
               <div className="text-[10px] text-muted-foreground">{seg.segment}</div>
-              <div className="text-sm font-bold">{formatCurrency(seg.revenue)}</div>
+              <div className="text-sm font-bold">{formatCompactCurrency(seg.revenue)}</div>
               <div className="text-[10px] text-muted-foreground">Ср. визитов: {seg.avgVisits}</div>
             </div>
           ))}
@@ -736,7 +727,7 @@ function RevenueChart({ dateRange }: { dateRange: DateRange }) {
                 yAxisId="left"
                 fontSize={11}
                 tick={{ fill: "var(--muted-foreground)" }}
-                tickFormatter={(v) => formatCurrency(v)}
+                tickFormatter={(v) => formatCompactCurrency(v)}
               />
               <YAxis yAxisId="right" orientation="right" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
               <Tooltip
@@ -748,7 +739,7 @@ function RevenueChart({ dateRange }: { dateRange: DateRange }) {
                   fontSize: "12px",
                 }}
                 formatter={(value, name) => {
-                  if (name === "revenue") return [formatCurrency(Number(value)), "Доход"];
+                  if (name === "revenue") return [formatCompactCurrency(Number(value)), "Доход"];
                   return [value, name === "appointments" ? "Записи" : "Новые клиенты"];
                 }}
               />

@@ -15,6 +15,7 @@ import {
   emailOpenRateData,
   conversionFunnelData,
 } from "@/lib/promotion-mock-data";
+import { formatNumber } from "@/lib/format";
 
 const METRIC_ICONS: Record<string, React.ElementType> = {
   mail: Mail,
@@ -70,7 +71,7 @@ export default function PromotionOverviewPage() {
                   <div className="mb-1 flex items-center justify-between text-sm">
                     <span className="font-medium">{stage.stage}</span>
                     <span className="text-muted-foreground">
-                      {stage.count.toLocaleString("ru-RU")} ({stage.percentage}%)
+                      {formatNumber(stage.count)} ({stage.percentage}%)
                     </span>
                   </div>
                   <div className="h-3 overflow-hidden rounded-full bg-muted">

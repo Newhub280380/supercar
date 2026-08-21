@@ -35,6 +35,7 @@ import {
 } from "@/lib/mock-data";
 import { exportAppointmentsCsv } from "@/lib/csv-export";
 import type { AppointmentStatus } from "@/types";
+import { formatDate, toIsoDate } from "@/lib/format";
 
 const METRIC_ICONS: Record<string, React.ElementType> = {
   calendar: Calendar,
@@ -62,7 +63,7 @@ function getMaxValue(data: Array<{ value: number }>) {
 
 export default function DashboardPage() {
   const todayAppointments = appointmentsData.filter(
-    (a) => a.date === new Date().toISOString().split("T")[0],
+    (a) => a.date === toIsoDate(),
   );
 
   const maxWeekly = getMaxValue(weeklyChartData);
@@ -86,12 +87,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="font-heading text-2xl font-bold">Добро пожаловать!</h1>
           <p className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString("ru-RU", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {formatDate(new Date(), "weekdayLongYear")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -194,7 +190,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                    {new Date(r.date).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                    {formatDate(r.date, "dayMonth")}
                   </span>
                 </div>
               );

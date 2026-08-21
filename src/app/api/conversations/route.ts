@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { aiConversations } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { requireSession } from "@/lib/auth";
+import { withUserId } from "@/lib/api/handlers";
+import { getSearchParam } from "@/lib/api/request";
+import { badRequest, notFound } from "@/lib/api/response";
 
-export async function GET() {
-  try {
-    const { session, response } = await requireSession();
-    if (response) return response;
-    const userId = session.sub;
-
+export const GET = withUserId(
+  "Error fetching conversations",
+  async (userId) => {
     const conversations = await db
       .select()
       .from(aiConversations)
@@ -17,23 +16,16 @@ export async function GET() {
       .orderBy(desc(aiConversations.updatedAt));
 
     return NextResponse.json({ conversations });
-  } catch (error) {
-    console.error("Error fetching conversations:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  },
+);
 
-export async function DELETE(request: NextRequest) {
-  try {
-    const { session, response } = await requireSession();
-    if (response) return response;
-    const userId = session.sub;
-
-    const { searchParams } = new URL(request.url);
-    const conversationId = searchParams.get("id");
+export const DELETE = withUserId(
+  "Error deleting conversation",
+  async (userId, request) => {
+    const conversationId = getSearchParam(request, "id");
 
     if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID required" }, { status: 400 });
+      return badRequest("Conversation ID required");
     }
 
     const [conv] = await db
@@ -43,14 +35,13 @@ export async function DELETE(request: NextRequest) {
       .limit(1);
 
     if (!conv || conv.userId !== userId) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return notFound();
     }
 
-    await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
+    await db
+      .delete(aiConversations)
+      .where(eq(aiConversations.id, conversationId));
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting conversation:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  },
+);

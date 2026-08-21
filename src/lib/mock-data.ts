@@ -1,3 +1,5 @@
+import { toIsoDate } from "./format";
+
 import type { AppointmentStatus, SkinType } from "@/types";
 
 export interface DashboardMetric {
@@ -64,7 +66,7 @@ export interface ReminderItem {
 }
 
 const today = new Date();
-const fmt = (d: Date) => d.toISOString().split("T")[0];
+const fmt = toIsoDate;
 const addDays = (d: Date, n: number) => {
   const r = new Date(d);
   r.setDate(r.getDate() + n);

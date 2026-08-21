@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TEMPLATE_LABELS } from "@/lib/ai/content-templates";
-import { copyToClipboard } from "@/lib/export-utils";
+import { copyToClipboard } from "@/lib/download";
 import type { ContentItem, ContentPlatform } from "@/types";
 import { useState } from "react";
+import { formatDate } from "@/lib/format";
 
 interface ContentLibraryProps {
   items: ContentItem[];
@@ -95,7 +96,7 @@ function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: str
             </Badge>
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <Clock className="size-3" />
-              {new Date(item.createdAt).toLocaleDateString("ru-RU")}
+              {formatDate(item.createdAt)}
             </span>
             {expanded && item.content.length > 120 && (
               <button

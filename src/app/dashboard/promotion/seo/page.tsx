@@ -19,6 +19,7 @@ import {
   type SeoPageItem,
 } from "@/lib/promotion-mock-data";
 import { auditSeoPages } from "@/lib/promotion-utils";
+import { downloadText } from "@/lib/download";
 
 const SEVERITY_CONFIG = {
   error: {
@@ -64,14 +65,7 @@ export default function SeoPage() {
       if (!res.ok) {
         throw new Error(`Failed to download ${filename}: ${res.status}`);
       }
-      const text = await res.text();
-      const blob = new Blob([text], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadText(await res.text(), filename, mimeType);
       setDownloadError(null);
     } catch (err) {
       console.error(`Failed to download ${filename}:`, err);

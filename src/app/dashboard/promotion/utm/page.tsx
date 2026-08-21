@@ -18,11 +18,12 @@ import {
   utmCampaignsData,
   type UtmCampaignItem,
 } from "@/lib/promotion-mock-data";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { formatNumber } from "@/lib/format";
 
 export default function UtmPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [source, setSource] = useState("");
   const [medium, setMedium] = useState("");
   const [campaign, setCampaign] = useState("");
@@ -33,10 +34,10 @@ export default function UtmPage() {
     c.source.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const { copy, copiedKey: copiedId } = useCopyToClipboard();
+
   const handleCopyUrl = (id: string, url: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    void copy(url, id);
   };
 
   const generatedUrl = source && medium && campaign && landingUrl
@@ -69,7 +70,7 @@ export default function UtmPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {utmCampaignsData.reduce((acc, c) => acc + c.clickCount, 0).toLocaleString("ru-RU")}
+              {formatNumber(utmCampaignsData.reduce((acc, c) => acc + c.clickCount, 0))}
             </div>
             <div className="text-xs text-muted-foreground">всего переходов</div>
           </CardContent>
@@ -81,7 +82,7 @@ export default function UtmPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {utmCampaignsData.reduce((acc, c) => acc + c.conversionCount, 0).toLocaleString("ru-RU")}
+              {formatNumber(utmCampaignsData.reduce((acc, c) => acc + c.conversionCount, 0))}
             </div>
             <div className="text-xs text-muted-foreground">целевых действий</div>
           </CardContent>

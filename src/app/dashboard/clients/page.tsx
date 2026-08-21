@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { clientsData, SKIN_TYPE_LABELS } from "@/lib/mock-data";
 import { exportClientsCsv } from "@/lib/csv-export";
+import { formatDate } from "@/lib/format";
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   new: { label: "Новый", className: "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300" },
@@ -245,7 +246,7 @@ function ClientRow({ client }: { client: (typeof clientsData)[0] }) {
       <td className="px-4 py-3 text-right font-medium hidden md:table-cell">{client.totalVisits}</td>
       <td className="px-4 py-3 text-right font-medium hidden lg:table-cell">₽{client.totalSpent}</td>
       <td className="px-4 py-3 text-right text-xs text-muted-foreground hidden md:table-cell">
-        {new Date(client.lastVisit).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+        {formatDate(client.lastVisit, "dayMonth")}
       </td>
     </tr>
   );

@@ -1,41 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { aiConversations } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { requireSession } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { withUserId } from "@/lib/api/handlers";
+import { badRequest, notFound } from "@/lib/api/response";
+import { getOwnedConversation } from "@/lib/conversations";
+import { formatDate, LOCALE } from "@/lib/format";
 
-export async function POST(request: NextRequest) {
-  try {
-    const { session, response } = await requireSession();
-    if (response) return response;
-    const userId = session.sub;
+export const POST = withUserId("Export PDF error", async (userId, request) => {
+  const body = await request.json();
+  const { conversationId } = body as { conversationId?: string };
 
-    const body = await request.json();
-    const { conversationId } = body as { conversationId?: string };
+  if (!conversationId) {
+    return badRequest("Conversation ID required");
+  }
 
-    if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID required" }, { status: 400 });
-    }
+  const conv = await getOwnedConversation(conversationId, userId);
+  if (!conv) {
+    return notFound();
+  }
 
-    const [conv] = await db
-      .select()
-      .from(aiConversations)
-      .where(eq(aiConversations.id, conversationId))
-      .limit(1);
+  const messages = conv.messages ?? [];
+  const topic = conv.topic ?? "Консультация";
+  const date = formatDate(conv.createdAt, "long");
 
-    if (!conv || conv.userId !== userId) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-
-    const messages = conv.messages ?? [];
-    const topic = conv.topic ?? "Консультация";
-    const date = new Date(conv.createdAt).toLocaleDateString("ru-RU", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-    const html = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -124,17 +110,22 @@ export async function POST(request: NextRequest) {
     <div class="meta">${escapeHtml(topic)} · ${escapeHtml(date)}</div>
   </div>
 
-  ${messages.map((m) => {
-    const isUser = m.role === "user";
-    const time = m.timestamp
-      ? new Date(m.timestamp).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
-      : "";
-    return `<div class="message ${isUser ? "user" : "assistant"}">
+  ${messages
+    .map((m) => {
+      const isUser = m.role === "user";
+      const time = m.timestamp
+        ? new Date(m.timestamp).toLocaleTimeString(LOCALE, {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "";
+      return `<div class="message ${isUser ? "user" : "assistant"}">
       <div class="role">${isUser ? "Вы" : "AI-консультант"}</div>
       <div class="content">${escapeHtml(m.content)}</div>
       ${time ? `<div class="time">${time}</div>` : ""}
     </div>`;
-  }).join("")}
+    })
+    .join("")}
 
   <div class="disclaimer">
     <strong>Важно:</strong> Данные рекомендации носят информационный характер и не заменяют консультацию специалиста. Для индивидуального подбора процедур обратитесь к сертифицированному косметологу.
@@ -154,17 +145,13 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-    return new NextResponse(html, {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `inline; filename="recommendations-${conversationId}.html"`,
-      },
-    });
-  } catch (error) {
-    console.error("Export PDF error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  return new NextResponse(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Disposition": `inline; filename="recommendations-${conversationId}.html"`,
+    },
+  });
+});
 
 function escapeHtml(text: string): string {
   return text

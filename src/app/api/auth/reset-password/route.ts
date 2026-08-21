@@ -2,38 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import {
-  hashPassword,
-  validatePasswordStrength,
-  checkAuthRateLimit,
-  getClientIp,
-} from "@/lib/auth";
+import { hashPassword, validatePasswordStrength } from "@/lib/auth";
+import { withRateLimit } from "@/lib/api/handlers";
+import { isNonEmptyString } from "@/lib/api/request";
+import { badRequest, withErrorHandling } from "@/lib/api/response";
 
-export async function POST(request: NextRequest) {
-  try {
-    if (!checkAuthRateLimit(`reset-password:${getClientIp(request)}`, 10)) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 },
-      );
-    }
-
+export const POST = withErrorHandling(
+  "Reset password error",
+  withRateLimit("reset-password", 10, async (request: NextRequest) => {
     const body = await request.json();
     const { token, password } = body;
 
-    if (typeof token !== "string" || typeof password !== "string" || !token || !password) {
-      return NextResponse.json(
-        { error: "Token and password are required" },
-        { status: 400 },
-      );
+    if (!isNonEmptyString(token) || !isNonEmptyString(password)) {
+      return badRequest("Token and password are required");
     }
 
     const passwordCheck = validatePasswordStrength(password);
     if (!passwordCheck.valid) {
-      return NextResponse.json(
-        { error: passwordCheck.errors.join(". ") },
-        { status: 400 },
-      );
+      return badRequest(passwordCheck.errors.join(". "));
     }
 
     const resetToken = await db.query.passwordResetTokens.findFirst({
@@ -44,17 +30,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!resetToken) {
-      return NextResponse.json(
-        { error: "Invalid or expired reset token" },
-        { status: 400 },
-      );
+      return badRequest("Invalid or expired reset token");
     }
 
     if (new Date() > resetToken.expiresAt) {
-      return NextResponse.json(
-        { error: "Reset token has expired" },
-        { status: 400 },
-      );
+      return badRequest("Reset token has expired");
     }
 
     const newHash = await hashPassword(password);
@@ -69,15 +49,8 @@ export async function POST(request: NextRequest) {
       .set({ used: true })
       .where(eq(passwordResetTokens.id, resetToken.id));
 
-    return NextResponse.json(
-      { message: "Password has been reset successfully" },
-      { status: 200 },
-    );
-  } catch (error) {
-    console.error("Reset password error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+    return NextResponse.json({
+      message: "Password has been reset successfully",
+    });
+  }),
+);

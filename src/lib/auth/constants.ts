@@ -1,10 +1,15 @@
 export const AUTH_COOKIE_NAME = "auth_token";
+/** Client-supplied identity headers the middleware strips before handlers run. */
+export const IDENTITY_HEADERS = ["x-user-id", "x-user-role"] as const;
 export const JWT_EXPIRES_IN = "7d";
 export const REFRESH_TOKEN_EXPIRES_IN = "30d";
 export const PASSWORD_RESET_EXPIRES_MINUTES = 60;
 export const BCRYPT_ROUNDS = 12;
 
 export const VALID_ROLES = ["admin", "cosmetologist", "client"] as const;
+
+/** Roles allowed to read and manage business data (campaigns, UTM, conversions). */
+export const MANAGER_ROLES = ["cosmetologist", "admin"] as const;
 
 export const ROLE_GUARDED_PATHS: Record<string, string[]> = {
   "/dashboard": ["cosmetologist", "admin"],
@@ -19,9 +24,4 @@ export const AUTH_PATHS = [
   "/auth/role-selection",
 ];
 
-export const PUBLIC_PATHS = [
-  "/",
-  "/about",
-  "/pricing",
-  "/contact",
-];
+export const PUBLIC_PATHS = ["/", "/about", "/pricing", "/contact"];

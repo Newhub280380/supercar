@@ -1,31 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { aiConversations } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import {
   generateAIResponse,
   checkRateLimit,
   safetyFilter,
   type ChatMessage,
 } from "@/lib/ai";
+import { withUserId } from "@/lib/api/handlers";
+import { badRequest, notFound, tooManyRequests } from "@/lib/api/response";
+import {
+  appendMessage,
+  getConversation,
+  getOwnedConversation,
+} from "@/lib/conversations";
 import type { SkinType } from "@/types";
-import { requireSession } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
-  try {
-    const { session, response } = await requireSession();
-    if (response) return response;
-    const userId = session.sub;
-
+export const POST = withUserId(
+  "Chat send message error",
+  async (userId, request) => {
     if (!checkRateLimit(userId)) {
-      return NextResponse.json(
-        { error: "Слишком много запросов. Подождите минуту." },
-        { status: 429 },
-      );
+      return tooManyRequests("Слишком много запросов. Подождите минуту.");
     }
 
     const body = await request.json();
-    const { conversationId, message, tone = "professional", skinType, concerns } = body as {
+    const {
+      conversationId,
+      message,
+      tone = "professional",
+      skinType,
+      concerns,
+    } = body as {
       conversationId?: string;
       message?: string;
       tone?: "professional" | "friendly";
@@ -34,55 +39,42 @@ export async function POST(request: NextRequest) {
     };
 
     if (!message?.trim()) {
-      return NextResponse.json({ error: "Сообщение не может быть пустым" }, { status: 400 });
+      return badRequest("Сообщение не может быть пустым");
     }
 
     const safety = safetyFilter(message);
     if (!safety.safe) {
-      return NextResponse.json({ error: safety.reason }, { status: 400 });
+      return badRequest(safety.reason ?? "Сообщение отклонено");
     }
 
     let activeConversationId = conversationId;
 
     if (!activeConversationId) {
-      const topic = message.slice(0, 60);
       const [newConv] = await db
         .insert(aiConversations)
         .values({
           userId,
-          topic,
-          messages: [{ role: "user", content: message, timestamp: new Date().toISOString() }],
+          topic: message.slice(0, 60),
+          messages: [
+            {
+              role: "user",
+              content: message,
+              timestamp: new Date().toISOString(),
+            },
+          ],
         })
         .returning();
       activeConversationId = newConv.id;
     } else {
-      const [existing] = await db
-        .select()
-        .from(aiConversations)
-        .where(eq(aiConversations.id, activeConversationId))
-        .limit(1);
-
-      if (!existing || existing.userId !== userId) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      const existing = await getOwnedConversation(activeConversationId, userId);
+      if (!existing) {
+        return notFound("Conversation not found");
       }
-
-      const updatedMessages = [
-        ...(existing.messages ?? []),
-        { role: "user", content: message, timestamp: new Date().toISOString() },
-      ];
-      await db
-        .update(aiConversations)
-        .set({ messages: updatedMessages, updatedAt: new Date() })
-        .where(eq(aiConversations.id, activeConversationId));
+      await appendMessage(existing, { role: "user", content: message });
     }
 
-    const history = await db
-      .select()
-      .from(aiConversations)
-      .where(eq(aiConversations.id, activeConversationId))
-      .limit(1);
-
-    const prevMessages: ChatMessage[] = (history[0].messages ?? []).map((m) => ({
+    const history = await getConversation(activeConversationId);
+    const prevMessages: ChatMessage[] = (history?.messages ?? []).map((m) => ({
       role: m.role as "user" | "assistant" | "system",
       content: m.content,
     }));
@@ -96,21 +88,13 @@ export async function POST(request: NextRequest) {
       concerns,
     });
 
-    const finalHistory = await db
-      .select()
-      .from(aiConversations)
-      .where(eq(aiConversations.id, activeConversationId))
-      .limit(1);
-
-    const withReply = [
-      ...(finalHistory[0].messages ?? []),
-      { role: "assistant", content: aiResult.message, timestamp: new Date().toISOString() },
-    ];
-
-    await db
-      .update(aiConversations)
-      .set({ messages: withReply, updatedAt: new Date() })
-      .where(eq(aiConversations.id, activeConversationId));
+    const finalHistory = await getConversation(activeConversationId);
+    if (finalHistory) {
+      await appendMessage(finalHistory, {
+        role: "assistant",
+        content: aiResult.message,
+      });
+    }
 
     return NextResponse.json({
       conversationId: activeConversationId,
@@ -119,8 +103,6 @@ export async function POST(request: NextRequest) {
       relatedFAQ: aiResult.relatedFAQ,
       usage: aiResult.usage,
     });
-  } catch (error) {
-    console.error("Chat send message error:", error);
-    return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
-  }
-}
+  },
+  "Внутренняя ошибка сервера",
+);

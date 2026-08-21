@@ -2,53 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import {
-  hashPassword,
-  validatePasswordStrength,
-  signToken,
-  checkAuthRateLimit,
-  getClientIp,
-} from "@/lib/auth";
-import { cookies } from "next/headers";
-import { AUTH_COOKIE_NAME } from "@/lib/auth";
+import { hashPassword, validatePasswordStrength, signToken } from "@/lib/auth";
+import { setAuthCookie } from "@/lib/auth/cookies";
+import { toAuthUser } from "@/lib/auth/serialize";
+import { withRateLimit } from "@/lib/api/handlers";
+import { isNonEmptyString } from "@/lib/api/request";
+import { badRequest, conflict, withErrorHandling } from "@/lib/api/response";
 import crypto from "crypto";
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    if (!checkAuthRateLimit(`register:${getClientIp(request)}`, 5)) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 },
-      );
-    }
-
+export const POST = withErrorHandling(
+  "Registration error",
+  withRateLimit("register", 5, async (request: NextRequest) => {
     const body = await request.json();
     const { email, password, name } = body;
 
-    if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
-      return NextResponse.json(
-        { error: "Email and password are required" },
-        { status: 400 },
-      );
+    if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
+      return badRequest("Email and password are required");
     }
 
     if (!isValidEmail(email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 },
-      );
+      return badRequest("Invalid email format");
     }
 
     const passwordCheck = validatePasswordStrength(password);
     if (!passwordCheck.valid) {
-      return NextResponse.json(
-        { error: passwordCheck.errors.join(". ") },
-        { status: 400 },
-      );
+      return badRequest(passwordCheck.errors.join(". "));
     }
 
     const existing = await db.query.users.findFirst({
@@ -56,21 +38,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: "User with this email already exists" },
-        { status: 409 },
-      );
+      return conflict("User with this email already exists");
     }
 
     const passwordHash = await hashPassword(password);
-    const sessionId = crypto.randomUUID();
 
     const [newUser] = await db
       .insert(users)
       .values({
         email: email.toLowerCase().trim(),
         passwordHash,
-        name: name?.trim() || null,
+        name: isNonEmptyString(name) ? name.trim() : null,
         role: "client",
       })
       .returning();
@@ -79,35 +57,11 @@ export async function POST(request: NextRequest) {
       userId: newUser.id,
       email: newUser.email,
       role: newUser.role,
-      sessionId,
+      sessionId: crypto.randomUUID(),
     });
 
-    const cookieStore = await cookies();
-    cookieStore.set(AUTH_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
+    await setAuthCookie(token);
 
-    return NextResponse.json(
-      {
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          name: newUser.name,
-          role: newUser.role,
-          avatar: newUser.avatar,
-        },
-      },
-      { status: 201 },
-    );
-  } catch (error) {
-    console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+    return NextResponse.json({ user: toAuthUser(newUser) }, { status: 201 });
+  }),
+);

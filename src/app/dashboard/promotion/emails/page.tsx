@@ -28,6 +28,7 @@ import type { EmailCampaignStatus } from "@/types";
 import { calculateEmailMetrics } from "@/lib/promotion-utils";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatDate } from "@/lib/format";
 
 const STATUS_COLORS: Record<EmailCampaignStatus, string> = {
   draft: "bg-slate-100 text-slate-800 dark:bg-slate-950/40 dark:text-slate-300",
@@ -116,7 +117,7 @@ export default function EmailsPage() {
                 <div className="mt-3 font-medium">{list.name}</div>
                 <div className="text-xs text-muted-foreground">{list.description}</div>
                 <div className="mt-2 text-xs text-muted-foreground">
-                  Создан: {new Date(list.createdAt).toLocaleDateString("ru-RU")}
+                  Создан: {formatDate(list.createdAt)}
                 </div>
               </CardContent>
             </Card>
@@ -243,13 +244,13 @@ function EmailCampaignCard({ campaign }: { campaign: EmailCampaignItem }) {
             {campaign.sentAt && (
               <span className="flex items-center gap-1">
                 <Send className="size-3" />
-                {new Date(campaign.sentAt).toLocaleDateString("ru-RU")}
+                {formatDate(campaign.sentAt)}
               </span>
             )}
             {campaign.scheduledAt && (
               <span className="flex items-center gap-1">
                 <Clock className="size-3" />
-                {new Date(campaign.scheduledAt).toLocaleDateString("ru-RU")}
+                {formatDate(campaign.scheduledAt)}
               </span>
             )}
           </div>

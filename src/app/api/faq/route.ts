@@ -1,34 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { faqItems, searchFAQ, getProceduresByCategory, searchProcedures } from "@/lib/ai";
+import {
+  faqItems,
+  searchFAQ,
+  getProceduresByCategory,
+  searchProcedures,
+} from "@/lib/ai";
+import { withErrorHandling } from "@/lib/api/response";
+import { getSearchParam } from "@/lib/api/request";
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q");
-    const category = searchParams.get("category");
-
+export const GET = withErrorHandling(
+  "FAQ error",
+  async (request: NextRequest) => {
+    const query = getSearchParam(request, "q");
     if (query) {
-      const results = searchFAQ(query);
-      return NextResponse.json({ items: results });
+      return NextResponse.json({ items: searchFAQ(query) });
     }
 
+    const category = getSearchParam(request, "category");
     if (category) {
-      const procedures = getProceduresByCategory(category as never);
-      return NextResponse.json({ procedures });
+      return NextResponse.json({
+        procedures: getProceduresByCategory(category as never),
+      });
     }
 
-    const proceduresSearch = searchParams.get("procedures");
+    const proceduresSearch = getSearchParam(request, "procedures");
     if (proceduresSearch) {
-      const results = searchProcedures(proceduresSearch);
-      return NextResponse.json({ procedures: results });
+      return NextResponse.json({
+        procedures: searchProcedures(proceduresSearch),
+      });
     }
 
     return NextResponse.json({
       items: faqItems,
       categories: [...new Set(faqItems.map((f) => f.category))],
     });
-  } catch (error) {
-    console.error("FAQ error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+  },
+);

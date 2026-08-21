@@ -1,35 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runConvoy } from "@/lib/mom-ai/convoy.runner";
 import { parseJsonBody } from "@/lib/api-utils";
-import { requireRole } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/api/response";
+import { MANAGER_ROLES, requireRole } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = withErrorHandling(
+  "Convoy error",
+  async (request: NextRequest) => {
     const { data: body, error } = await parseJsonBody(request);
     if (error) return error;
     const { step } = body;
 
     if (step === "posts") {
       const { generateGermanPosts } = await import("@/lib/mom-ai/german-posts");
-      const posts = generateGermanPosts();
-      return NextResponse.json({ posts });
+      return NextResponse.json({ posts: generateGermanPosts() });
     }
 
     if (step === "images") {
       const { generateMomImages } =
         await import("@/lib/mom-ai/image-generator");
-      const images = await generateMomImages([]);
-      return NextResponse.json({ images });
+      return NextResponse.json({ images: await generateMomImages([]) });
     }
 
     if (step === "landing") {
       const { generateLandingContent } =
         await import("@/lib/mom-ai/landing-generator");
-      const content = await generateLandingContent([], []);
-      return NextResponse.json({ landing: content });
+      return NextResponse.json({
+        landing: await generateLandingContent([], []),
+      });
     }
 
-    const { response } = await requireRole(["cosmetologist", "admin"]);
+    const { response } = await requireRole(MANAGER_ROLES);
     if (response) return response;
 
     const result = await runConvoy();
@@ -45,8 +46,6 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json({ summary: result.summary });
-  } catch (err) {
-    console.error("Convoy error:", err);
-    return NextResponse.json({ error: "Convoy failed" }, { status: 500 });
-  }
-}
+  },
+  "Convoy failed",
+);

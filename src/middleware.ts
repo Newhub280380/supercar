@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify, errors as joseErrors } from "jose";
-
-const AUTH_COOKIE_NAME = "auth_token";
+import { AUTH_COOKIE_NAME, IDENTITY_HEADERS } from "@/lib/auth/constants";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/chat"];
 const AUTH_PREFIXES = [
@@ -41,8 +40,6 @@ async function verifyToken(
     throw error;
   }
 }
-
-const IDENTITY_HEADERS = ["x-user-id", "x-user-role"];
 
 // Drop client-supplied identity headers so route handlers can never read a spoofed
 // identity; handlers derive the user from the verified session cookie instead.
