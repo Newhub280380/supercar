@@ -33,7 +33,12 @@ export default function UtmPage() {
   const [campaign, setCampaign] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
 
-  const filteredCampaigns = utmCampaignsData.filter(
+  const [campaigns, setCampaigns] =
+    useState<UtmCampaignItem[]>(utmCampaignsData);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const filteredCampaigns = campaigns.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.source.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -49,6 +54,41 @@ export default function UtmPage() {
     source && medium && campaign && landingUrl
       ? `https://example.com${landingUrl}?utm_source=${source}&utm_medium=${medium}&utm_campaign=${campaign}`
       : "";
+
+  const resetForm = () => {
+    setSource("");
+    setMedium("");
+    setCampaign("");
+    setLandingUrl("");
+    setCreateError(null);
+  };
+
+  const handleCreate = async () => {
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/utm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source, medium, campaign, landingUrl }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setCreateError(data?.error ?? "Не удалось создать UTM-метку");
+        return;
+      }
+      setCampaigns((current) => [
+        { ...data.campaign, name: campaign } as UtmCampaignItem,
+        ...current,
+      ]);
+      setShowCreate(false);
+      resetForm();
+    } catch {
+      setCreateError("Ошибка сети. Повторите попытку.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -77,7 +117,7 @@ export default function UtmPage() {
           <CardContent>
             <div className="text-3xl font-bold">
               {formatNumber(
-                utmCampaignsData.reduce((acc, c) => acc + c.clickCount, 0),
+                campaigns.reduce((acc, c) => acc + c.clickCount, 0),
               )}
             </div>
             <div className="text-muted-foreground text-xs">всего переходов</div>
@@ -91,7 +131,7 @@ export default function UtmPage() {
           <CardContent>
             <div className="text-3xl font-bold">
               {formatNumber(
-                utmCampaignsData.reduce((acc, c) => acc + c.conversionCount, 0),
+                campaigns.reduce((acc, c) => acc + c.conversionCount, 0),
               )}
             </div>
             <div className="text-muted-foreground text-xs">
@@ -106,11 +146,11 @@ export default function UtmPage() {
           </CardHeader>
           <CardContent>
             {(() => {
-              const totalClicks = utmCampaignsData.reduce(
+              const totalClicks = campaigns.reduce(
                 (acc, c) => acc + c.clickCount,
                 0,
               );
-              const totalConversions = utmCampaignsData.reduce(
+              const totalConversions = campaigns.reduce(
                 (acc, c) => acc + c.conversionCount,
                 0,
               );
@@ -194,6 +234,9 @@ export default function UtmPage() {
                 onChange={(e) => setLandingUrl(e.target.value)}
               />
             </div>
+            {createError && (
+              <p className="text-destructive text-sm">{createError}</p>
+            )}
             {generatedUrl && (
               <div className="bg-muted/50 rounded-lg p-3">
                 <div className="text-muted-foreground text-xs font-medium">
@@ -209,25 +252,17 @@ export default function UtmPage() {
                 variant="outline"
                 onClick={() => {
                   setShowCreate(false);
-                  setSource("");
-                  setMedium("");
-                  setCampaign("");
-                  setLandingUrl("");
+                  resetForm();
                 }}
               >
                 Отмена
               </Button>
               <Button
-                onClick={() => {
-                  setShowCreate(false);
-                  setSource("");
-                  setMedium("");
-                  setCampaign("");
-                  setLandingUrl("");
-                }}
+                disabled={!generatedUrl || isCreating}
+                onClick={() => void handleCreate()}
               >
                 <Link2 className="size-4" />
-                Создать UTM
+                {isCreating ? "Создание..." : "Создать UTM"}
               </Button>
             </div>
           </div>
