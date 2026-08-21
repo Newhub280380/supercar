@@ -50,7 +50,8 @@ function buildHtmlContent(
   health: BusinessHealth,
   insights: AIInsight[],
 ): string {
-  const healthColor = health.score >= 80 ? "#22c55e" : health.score >= 60 ? "#eab308" : "#ef4444";
+  const healthColor =
+    health.score >= 80 ? "#22c55e" : health.score >= 60 ? "#eab308" : "#ef4444";
   const insightTypeColor: Record<string, string> = {
     positive: "#22c55e",
     warning: "#eab308",
@@ -128,7 +129,7 @@ function buildHtmlContent(
   <table>
     <thead><tr><th>Месяц</th><th>Доход</th><th>Записи</th><th>Новые клиенты</th></tr></thead>
     <tbody>
-      ${revenue.map(d => `<tr><td>${d.month}</td><td>${formatCurrency(d.revenue)}</td><td>${d.appointments}</td><td>${d.newClients}</td></tr>`).join("")}
+      ${revenue.map((d) => `<tr><td>${d.month}</td><td>${formatCurrency(d.revenue)}</td><td>${d.appointments}</td><td>${d.newClients}</td></tr>`).join("")}
     </tbody>
   </table>
 
@@ -136,17 +137,21 @@ function buildHtmlContent(
   <table>
     <thead><tr><th>Услуга</th><th>Категория</th><th>Записей</th><th>Доход</th></tr></thead>
     <tbody>
-      ${services.map(s => `<tr><td>${s.name}</td><td>${s.category}</td><td>${s.count}</td><td>${formatCurrency(s.revenue)}</td></tr>`).join("")}
+      ${services.map((s) => `<tr><td>${s.name}</td><td>${s.category}</td><td>${s.count}</td><td>${formatCurrency(s.revenue)}</td></tr>`).join("")}
     </tbody>
   </table>
 
   <h2>AI-рекомендации</h2>
-  ${insights.map(ins => `
+  ${insights
+    .map(
+      (ins) => `
     <div class="insight" style="border-color:${insightTypeColor[ins.type]}">
       <div class="insight-title">${ins.title}</div>
       <div class="insight-desc">${ins.description}</div>
     </div>
-  `).join("")}
+  `,
+    )
+    .join("")}
 </body>
 </html>`;
 }
@@ -203,5 +208,9 @@ export function exportAnalyticsExcel(
   xml += `</Table></Worksheet>`;
   xml += `</Workbook>`;
 
-  downloadText(xml, "analytics-report.xls", "application/vnd.ms-excel;charset=utf-8;");
+  downloadText(
+    xml,
+    "analytics-report.xls",
+    "application/vnd.ms-excel;charset=utf-8;",
+  );
 }

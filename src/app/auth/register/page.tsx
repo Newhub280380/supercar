@@ -5,8 +5,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormError, IconField, PasswordField, usePasswordVisibility } from "@/components/auth/form-fields";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  FormError,
+  IconField,
+  PasswordField,
+  usePasswordVisibility,
+} from "@/components/auth/form-fields";
 import { Mail, Lock, User } from "lucide-react";
 
 export default function RegisterPage() {
@@ -14,7 +26,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const { visible: showPassword, toggle: togglePassword } = usePasswordVisibility();
+  const { visible: showPassword, toggle: togglePassword } =
+    usePasswordVisibility();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -43,7 +56,7 @@ export default function RegisterPage() {
   return (
     <Card className="shadow-lg">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-heading">Create Account</CardTitle>
+        <CardTitle className="font-heading text-2xl">Create Account</CardTitle>
         <CardDescription>Join the AI Cosmetology Platform</CardDescription>
       </CardHeader>
       <CardContent>
@@ -93,15 +106,18 @@ export default function RegisterPage() {
             autoComplete="new-password"
             visible={showPassword}
           />
-          <Button type="submit" className="w-full h-10" disabled={loading}>
+          <Button type="submit" className="h-10 w-full" disabled={loading}>
             {loading ? "Creating account..." : "Create Account"}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Already have an account?{" "}
-          <Link href="/auth/login" className="font-medium text-primary hover:underline">
+          <Link
+            href="/auth/login"
+            className="text-primary font-medium hover:underline"
+          >
             Sign in
           </Link>
         </p>

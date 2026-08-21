@@ -1,6 +1,15 @@
 "use client";
 
-import { BookOpen, Trash2, Copy, Check, Camera, Send, Hash, Clock } from "lucide-react";
+import {
+  BookOpen,
+  Trash2,
+  Copy,
+  Check,
+  Camera,
+  Send,
+  Hash,
+  Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +36,7 @@ export function ContentLibrary({ items, onDelete }: ContentLibraryProps) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-medium">
-          <BookOpen className="size-4 text-primary" />
+          <BookOpen className="text-primary size-4" />
           Библиотека контента
           {items.length > 0 && (
             <Badge variant="secondary" className="ml-1 text-xs">
@@ -38,7 +47,7 @@ export function ContentLibrary({ items, onDelete }: ContentLibraryProps) {
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="text-muted-foreground py-8 text-center text-sm">
             Сохранённых текстов пока нет
           </p>
         ) : (
@@ -53,7 +62,13 @@ export function ContentLibrary({ items, onDelete }: ContentLibraryProps) {
   );
 }
 
-function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: string) => void }) {
+function LibraryItem({
+  item,
+  onDelete,
+}: {
+  item: ContentItem;
+  onDelete: (id: string) => void;
+}) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -75,18 +90,23 @@ function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: str
   const preview = item.content.slice(0, 120);
 
   return (
-    <div className="group rounded-lg border border-border/50 p-3 transition-colors hover:bg-muted/50">
+    <div className="group border-border/50 hover:bg-muted/50 rounded-lg border p-3 transition-colors">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 text-muted-foreground">
+        <div className="text-muted-foreground mt-0.5">
           <PlatformIcon className="size-4" />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">
               {item.title || TEMPLATE_LABELS[item.templateType]}
             </span>
           </div>
-          <p className={cn("mt-1 text-xs text-muted-foreground", !expanded && "line-clamp-2")}>
+          <p
+            className={cn(
+              "text-muted-foreground mt-1 text-xs",
+              !expanded && "line-clamp-2",
+            )}
+          >
             {expanded ? item.content : preview}
             {item.content.length > 120 && !expanded && "..."}
           </p>
@@ -94,14 +114,14 @@ function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: str
             <Badge variant="secondary" className="text-[10px]">
               {TEMPLATE_LABELS[item.templateType]}
             </Badge>
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="text-muted-foreground flex items-center gap-1 text-[10px]">
               <Clock className="size-3" />
               {formatDate(item.createdAt)}
             </span>
             {expanded && item.content.length > 120 && (
               <button
                 onClick={() => setExpanded(false)}
-                className="text-[10px] text-primary hover:underline"
+                className="text-primary text-[10px] hover:underline"
               >
                 Свернуть
               </button>
@@ -109,7 +129,7 @@ function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: str
             {!expanded && item.content.length > 120 && (
               <button
                 onClick={() => setExpanded(true)}
-                className="text-[10px] text-primary hover:underline"
+                className="text-primary text-[10px] hover:underline"
               >
                 Развернуть
               </button>
@@ -121,7 +141,11 @@ function LibraryItem({ item, onDelete }: { item: ContentItem; onDelete: (id: str
         </div>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <Button variant="ghost" size="icon-xs" onClick={handleCopy}>
-            {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+            {copied ? (
+              <Check className="size-3.5 text-green-500" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
           </Button>
           <Button
             variant="ghost"

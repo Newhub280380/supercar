@@ -2,7 +2,10 @@ import { buildCsv, downloadCsv, type CsvValue } from "./csv";
 
 type CsvRecord = Record<string, CsvValue>;
 
-export function exportToCsv<T extends CsvRecord>(data: T[], filename: string): void {
+export function exportToCsv<T extends CsvRecord>(
+  data: T[],
+  filename: string,
+): void {
   if (data.length === 0) return;
 
   const headers = Object.keys(data[0]);
@@ -11,7 +14,10 @@ export function exportToCsv<T extends CsvRecord>(data: T[], filename: string): v
   downloadCsv(buildCsv([headers, ...rows]), filename);
 }
 
-export function exportAppointmentsCsv(data: CsvRecord[], filename = "appointments") {
+export function exportAppointmentsCsv(
+  data: CsvRecord[],
+  filename = "appointments",
+) {
   exportToCsv(data, filename);
 }
 

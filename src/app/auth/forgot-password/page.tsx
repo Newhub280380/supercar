@@ -3,7 +3,14 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { FormError, IconField } from "@/components/auth/form-fields";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
 
@@ -45,9 +52,12 @@ export default function ForgotPasswordPage() {
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
             <CheckCircle className="size-6 text-green-600 dark:text-green-400" />
           </div>
-          <CardTitle className="text-2xl font-heading">Check Your Email</CardTitle>
+          <CardTitle className="font-heading text-2xl">
+            Check Your Email
+          </CardTitle>
           <CardDescription>
-            We&apos;ve sent a password reset link to <strong>{email}</strong>. Please check your inbox and follow the instructions.
+            We&apos;ve sent a password reset link to <strong>{email}</strong>.
+            Please check your inbox and follow the instructions.
           </CardDescription>
         </CardHeader>
         <CardFooter className="flex justify-center">
@@ -65,8 +75,12 @@ export default function ForgotPasswordPage() {
   return (
     <Card className="shadow-lg">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-heading">Forgot Password?</CardTitle>
-        <CardDescription>Enter your email and we&apos;ll send you a reset link</CardDescription>
+        <CardTitle className="font-heading text-2xl">
+          Forgot Password?
+        </CardTitle>
+        <CardDescription>
+          Enter your email and we&apos;ll send you a reset link
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -82,13 +96,16 @@ export default function ForgotPasswordPage() {
             required
             autoComplete="email"
           />
-          <Button type="submit" className="w-full h-10" disabled={loading}>
+          <Button type="submit" className="h-10 w-full" disabled={loading}>
             {loading ? "Sending..." : "Send Reset Link"}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
-        <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+        <Link
+          href="/auth/login"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
+        >
           <ArrowLeft className="size-4" />
           Back to Login
         </Link>

@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useCallback, useState, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useState,
+  useRef,
+} from "react";
 import type { Role } from "@/types";
 
 interface UserData {
@@ -113,7 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext value={{ user, loading, login, register, logout, refreshUser: fetchUser }}>
+    <AuthContext
+      value={{ user, loading, login, register, logout, refreshUser: fetchUser }}
+    >
       {children}
     </AuthContext>
   );

@@ -13,7 +13,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
-      include: ["src/lib/**/*.ts", "src/hooks/**/*.ts", "src/middleware.ts"],
+      include: ["src/lib/**/*.ts", "src/hooks/**/*.ts", "src/proxy.ts"],
       exclude: ["src/lib/**/*mock-data.ts", "src/db/**"],
     },
   },

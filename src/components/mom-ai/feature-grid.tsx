@@ -1,7 +1,6 @@
 "use client";
 
 import { Calendar, Bell, MessageSquare, Users, FileText, Home } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { LandingContent } from "@/lib/mom-ai/landing-generator";
 
 const iconMap: Record<string, React.ElementType> = {

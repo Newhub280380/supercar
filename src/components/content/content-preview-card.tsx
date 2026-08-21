@@ -1,11 +1,25 @@
 "use client";
 
-import { Copy, Save, RefreshCw, FileText, Check, Camera, Send, Hash } from "lucide-react";
+import {
+  Copy,
+  Save,
+  RefreshCw,
+  FileText,
+  Check,
+  Camera,
+  Send,
+  Hash,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { exportAsTXT, exportAsHTML, getWordCount, getCharCount } from "@/lib/export-utils";
+import {
+  exportAsTXT,
+  exportAsHTML,
+  getWordCount,
+  getCharCount,
+} from "@/lib/export-utils";
 import { copyToClipboard } from "@/lib/download";
 import type { ContentGenerationResult, ContentPlatform } from "@/types";
 import { useState } from "react";
@@ -19,20 +33,26 @@ interface ContentPreviewCardProps {
   isLoading: boolean;
 }
 
-const platformStyles: Record<ContentPlatform, { border: string; headerBg: string; label: string }> = {
+const platformStyles: Record<
+  ContentPlatform,
+  { border: string; headerBg: string; label: string }
+> = {
   instagram: {
     border: "border-pink-200 dark:border-pink-900/30",
-    headerBg: "bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/20 dark:to-purple-950/20",
+    headerBg:
+      "bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/20 dark:to-purple-950/20",
     label: "Instagram",
   },
   telegram: {
     border: "border-blue-200 dark:border-blue-900/30",
-    headerBg: "bg-gradient-to-r from-blue-50 to-sky-50 dark:from-blue-950/20 dark:to-sky-950/20",
+    headerBg:
+      "bg-gradient-to-r from-blue-50 to-sky-50 dark:from-blue-950/20 dark:to-sky-950/20",
     label: "Telegram",
   },
   vk: {
     border: "border-sky-200 dark:border-sky-900/30",
-    headerBg: "bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/20 dark:to-blue-950/20",
+    headerBg:
+      "bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/20 dark:to-blue-950/20",
     label: "ВКонтакте",
   },
 };
@@ -76,7 +96,9 @@ export function ContentPreviewCard({
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const filename = result.title?.slice(0, 30)?.replace(/[^a-zA-Zа-яА-Я0-9]/g, "_") || "content";
+  const filename =
+    result.title?.slice(0, 30)?.replace(/[^a-zA-Zа-яА-Я0-9]/g, "_") ||
+    "content";
 
   return (
     <div className="space-y-4">
@@ -84,15 +106,15 @@ export function ContentPreviewCard({
         <div className={cn("border-b px-4 py-3", style.headerBg)}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <PlatformIcon className="size-4 text-muted-foreground" />
+              <PlatformIcon className="text-muted-foreground size-4" />
               <span className="text-sm font-medium">{style.label}</span>
               {result.subjectLine && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   — {result.subjectLine}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex items-center gap-2 text-xs">
               <span>{getWordCount(result.content)} слов</span>
               <span>·</span>
               <span>{getCharCount(result.content)} симв.</span>
@@ -100,7 +122,7 @@ export function ContentPreviewCard({
           </div>
         </div>
         <CardContent className="p-4">
-          <pre className="max-h-[500px] overflow-y-auto whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-foreground">
+          <pre className="text-foreground max-h-[500px] overflow-y-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap">
             {result.content}
           </pre>
         </CardContent>
@@ -109,7 +131,7 @@ export function ContentPreviewCard({
       {result.hashtags && result.hashtags.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <CardTitle className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
               <Hash className="size-3" />
               Хештеги ({result.hashtags.length})
             </CardTitle>
@@ -129,12 +151,14 @@ export function ContentPreviewCard({
       {result.metaDescription && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <CardTitle className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
               Meta Description
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">{result.metaDescription}</p>
+            <p className="text-muted-foreground text-sm">
+              {result.metaDescription}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -170,14 +194,28 @@ export function ContentPreviewCard({
             </span>
           )}
         </Button>
-        <Button variant="outline" size="sm" onClick={() => exportAsTXT(result.content, filename)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportAsTXT(result.content, filename)}
+        >
           <FileText className="size-3.5" /> TXT
         </Button>
-        <Button variant="outline" size="sm" onClick={() => exportAsHTML(result.content, filename)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => exportAsHTML(result.content, filename)}
+        >
           <FileText className="size-3.5" /> HTML
         </Button>
-        <Button variant="outline" size="sm" onClick={onRegenerate} disabled={isLoading}>
-          <RefreshCw className={cn("size-3.5", isLoading && "animate-spin")} /> Заново
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRegenerate}
+          disabled={isLoading}
+        >
+          <RefreshCw className={cn("size-3.5", isLoading && "animate-spin")} />{" "}
+          Заново
         </Button>
       </div>
     </div>
@@ -188,11 +226,13 @@ export function EmptyPreview() {
   return (
     <Card className="flex min-h-[400px] items-center justify-center border-dashed">
       <div className="text-center">
-        <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-muted">
-          <FileText className="size-6 text-muted-foreground" />
+        <div className="bg-muted mx-auto mb-3 flex size-12 items-center justify-center rounded-xl">
+          <FileText className="text-muted-foreground size-6" />
         </div>
-        <p className="text-sm font-medium text-muted-foreground">Предпросмотр контента</p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-sm font-medium">
+          Предпросмотр контента
+        </p>
+        <p className="text-muted-foreground mt-1 text-xs">
           Настройте генератор и нажмите «Сгенерировать»
         </p>
       </div>

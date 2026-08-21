@@ -99,11 +99,26 @@ export const yearlyData: RevenueDataPoint[] = [
 
 export const servicePopularityData: ServicePopularity[] = [
   { name: "Чистка лица", count: 45, revenue: 225000, category: "Уход" },
-  { name: "Биоревитализация", count: 34, revenue: 408000, category: "Инъекции" },
+  {
+    name: "Биоревитализация",
+    count: 34,
+    revenue: 408000,
+    category: "Инъекции",
+  },
   { name: "Ботокс", count: 31, revenue: 558000, category: "Инъекции" },
-  { name: "Химический пилинг", count: 28, revenue: 238000, category: "Пилинги" },
+  {
+    name: "Химический пилинг",
+    count: 28,
+    revenue: 238000,
+    category: "Пилинги",
+  },
   { name: "Мезотерапия", count: 22, revenue: 330000, category: "Инъекции" },
-  { name: "Контурная пластика", count: 18, revenue: 450000, category: "Филлеры" },
+  {
+    name: "Контурная пластика",
+    count: 18,
+    revenue: 450000,
+    category: "Филлеры",
+  },
   { name: "Лазерная эпиляция", count: 15, revenue: 97500, category: "Лазер" },
   { name: "Плазмолифтинг", count: 12, revenue: 240000, category: "Инъекции" },
 ];
@@ -143,7 +158,8 @@ export const aiInsights: AIInsight[] = [
     id: "ins-1",
     type: "positive",
     title: "Рост популярности инъекций",
-    description: "Биоревитализация и ботокс показали рост на 35% за последний квартал. Рекомендуется увеличить рекламу этих процедур.",
+    description:
+      "Биоревитализация и ботокс показали рост на 35% за последний квартал. Рекомендуется увеличить рекламу этих процедур.",
     impact: "high",
     actionLabel: "Увеличить рекламу",
   },
@@ -151,7 +167,8 @@ export const aiInsights: AIInsight[] = [
     id: "ins-2",
     type: "warning",
     title: "Снижение загрузки в среду",
-    description: "Загрузка по средам на 40% ниже среднего. Предложите скидки или акции для этого дня.",
+    description:
+      "Загрузка по средам на 40% ниже среднего. Предложите скидки или акции для этого дня.",
     impact: "medium",
     actionLabel: "Создать акцию",
   },
@@ -159,7 +176,8 @@ export const aiInsights: AIInsight[] = [
     id: "ins-3",
     type: "suggestion",
     title: "Потенциал контурной пластики",
-    description: "Средний чек контурной пластики в 2.5 раза выше среднего. Рекомендуйте процедуру постоянным клиентам.",
+    description:
+      "Средний чек контурной пластики в 2.5 раза выше среднего. Рекомендуйте процедуру постоянным клиентам.",
     impact: "high",
     actionLabel: "Смотреть клиентов",
   },
@@ -167,7 +185,8 @@ export const aiInsights: AIInsight[] = [
     id: "ins-4",
     type: "trend",
     title: "Сезонный тренд: пилинги",
-    description: "Осенью спрос на пилинги вырастает на 60%. Подготовьте рекламную кампанию заранее.",
+    description:
+      "Осенью спрос на пилинги вырастает на 60%. Подготовьте рекламную кампанию заранее.",
     impact: "high",
     actionLabel: "Планировать кампанию",
   },
@@ -175,7 +194,8 @@ export const aiInsights: AIInsight[] = [
     id: "ins-5",
     type: "suggestion",
     title: "VIP-клиенты реже записываются",
-    description: "3 VIP-клиента не были более 45 дней. Рекомендация: отправить персональное предложение.",
+    description:
+      "3 VIP-клиента не были более 45 дней. Рекомендация: отправить персональное предложение.",
     impact: "medium",
     actionLabel: "Отправить предложения",
   },
@@ -183,7 +203,8 @@ export const aiInsights: AIInsight[] = [
     id: "ins-6",
     type: "positive",
     title: "Высокая конверсия новых клиентов",
-    description: "Конверсия новых клиентов в повторные визиты выросла до 68%. Отличный показатель удержания.",
+    description:
+      "Конверсия новых клиентов в повторные визиты выросла до 68%. Отличный показатель удержания.",
     impact: "low",
     actionLabel: "Подробнее",
   },
@@ -197,9 +218,17 @@ export function generateForecastData(): ForecastDataPoint[] {
     const actualRevenue = monthlyRevenueData[i]?.revenue ?? null;
 
     if (i < 6) {
-      data.push({ month: monthName, actual: actualRevenue, forecast: null, lowerBound: null, upperBound: null });
+      data.push({
+        month: monthName,
+        actual: actualRevenue,
+        forecast: null,
+        lowerBound: null,
+        upperBound: null,
+      });
     } else {
-      const trend = actualRevenue ? actualRevenue * (1 + (i - 5) * 0.04) : 300000 + (i - 5) * 15000;
+      const trend = actualRevenue
+        ? actualRevenue * (1 + (i - 5) * 0.04)
+        : 300000 + (i - 5) * 15000;
       data.push({
         month: monthName,
         actual: null,
@@ -224,9 +253,18 @@ export function calculateBusinessHealth(): BusinessHealth {
 }
 
 export function calculateMetrics(): MetricSummary {
-  const totalRevenue = monthlyRevenueData.reduce((sum, d) => sum + d.revenue, 0);
-  const totalAppointments = monthlyRevenueData.reduce((sum, d) => sum + d.appointments, 0);
-  const totalNewClients = monthlyRevenueData.reduce((sum, d) => sum + d.newClients, 0);
+  const totalRevenue = monthlyRevenueData.reduce(
+    (sum, d) => sum + d.revenue,
+    0,
+  );
+  const totalAppointments = monthlyRevenueData.reduce(
+    (sum, d) => sum + d.appointments,
+    0,
+  );
+  const totalNewClients = monthlyRevenueData.reduce(
+    (sum, d) => sum + d.newClients,
+    0,
+  );
 
   return {
     ltv: Math.round(totalRevenue / (totalNewClients || 1)),

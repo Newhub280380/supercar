@@ -8,7 +8,11 @@ interface SectionWrapperProps {
   delay?: number;
 }
 
-export function SectionWrapper({ children, className, delay = 0 }: SectionWrapperProps) {
+export function SectionWrapper({
+  children,
+  className,
+  delay = 0,
+}: SectionWrapperProps) {
   return (
     <Reveal className={className} delay={delay}>
       {children}

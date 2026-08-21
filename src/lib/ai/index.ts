@@ -1,12 +1,21 @@
 export {
   generateAIResponse,
+  streamAIResponse,
   checkRateLimit,
   safetyFilter,
   type ChatMessage,
   type ChatRole,
   type AIChatResponse,
   type SendMessageParams,
+  type StreamCallbacks,
 } from "./openai-service";
+
+export {
+  getModel,
+  isAIEnabled,
+  DEFAULT_MODEL,
+  type ChatCompletionParams,
+} from "./openai-client";
 
 export {
   procedures,

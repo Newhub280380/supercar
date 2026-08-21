@@ -1,9 +1,9 @@
 import { SignJWT } from "jose";
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { config, middleware } from "./middleware";
+import { config, proxy } from "./proxy";
 
-const SECRET = "middleware-test-secret-value";
+const SECRET = "proxy-test-secret-value";
 const originalSecret = process.env.JWT_SECRET;
 
 beforeAll(() => {
@@ -45,9 +45,9 @@ function makeRequest(
   return request;
 }
 
-describe("middleware on protected pages", () => {
+describe("proxy on protected pages", () => {
   it("redirects anonymous visitors to the login page keeping the target as redirect", async () => {
-    const response = await middleware(makeRequest("/dashboard/analytics"));
+    const response = await proxy(makeRequest("/dashboard/analytics"));
     const location = new URL(response.headers.get("location")!);
 
     expect(response.status).toBe(307);
@@ -56,7 +56,7 @@ describe("middleware on protected pages", () => {
   });
 
   it("redirects to the login page when the token cannot be verified", async () => {
-    const response = await middleware(makeRequest("/profile", "not-a-jwt"));
+    const response = await proxy(makeRequest("/profile", "not-a-jwt"));
     expect(new URL(response.headers.get("location")!).pathname).toBe(
       "/auth/login",
     );
@@ -64,14 +64,14 @@ describe("middleware on protected pages", () => {
 
   it("redirects to the login page when the token was signed with another secret", async () => {
     const token = await makeToken("admin", "user-1", "some-other-secret");
-    const response = await middleware(makeRequest("/dashboard", token));
+    const response = await proxy(makeRequest("/dashboard", token));
     expect(new URL(response.headers.get("location")!).pathname).toBe(
       "/auth/login",
     );
   });
 
   it("lets an authorized role through without emitting identity headers", async () => {
-    const response = await middleware(
+    const response = await proxy(
       makeRequest("/dashboard", await makeToken("cosmetologist")),
     );
 
@@ -81,14 +81,14 @@ describe("middleware on protected pages", () => {
   });
 
   it("redirects to the home page when the role may not access the dashboard", async () => {
-    const response = await middleware(
+    const response = await proxy(
       makeRequest("/dashboard", await makeToken("client")),
     );
     expect(new URL(response.headers.get("location")!).pathname).toBe("/");
   });
 
   it("allows any authenticated role on protected pages without a role restriction", async () => {
-    const response = await middleware(
+    const response = await proxy(
       makeRequest("/chat", await makeToken("client")),
     );
     expect(response.headers.get("location")).toBeNull();
@@ -96,44 +96,42 @@ describe("middleware on protected pages", () => {
   });
 });
 
-describe("middleware on auth pages", () => {
+describe("proxy on auth pages", () => {
   it("lets anonymous visitors reach the login page", async () => {
-    const response = await middleware(makeRequest("/auth/login"));
+    const response = await proxy(makeRequest("/auth/login"));
     expect(response.headers.get("location")).toBeNull();
   });
 
   it("lets visitors with an unverifiable token reach the register page", async () => {
-    const response = await middleware(
-      makeRequest("/auth/register", "not-a-jwt"),
-    );
+    const response = await proxy(makeRequest("/auth/register", "not-a-jwt"));
     expect(response.headers.get("location")).toBeNull();
   });
 
   it("redirects authenticated visitors away from auth pages", async () => {
-    const response = await middleware(
+    const response = await proxy(
       makeRequest("/auth/login", await makeToken("client")),
     );
     expect(new URL(response.headers.get("location")!).pathname).toBe("/");
   });
 });
 
-describe("middleware on api routes", () => {
+describe("proxy on api routes", () => {
   it("answers 401 for protected api routes without a token", async () => {
-    const response = await middleware(makeRequest("/api/chat"));
+    const response = await proxy(makeRequest("/api/chat"));
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "Unauthorized" });
   });
 
   it("answers 401 for protected api routes with an invalid token", async () => {
-    const response = await middleware(
+    const response = await proxy(
       makeRequest("/api/conversations", "not-a-jwt"),
     );
     expect(response.status).toBe(401);
   });
 
   it("allows protected api routes with a valid token and drops client identity headers", async () => {
-    const response = await middleware(
+    const response = await proxy(
       makeRequest("/api/export-pdf", await makeToken("admin", "user-9"), {
         "x-user-id": "attacker",
         "x-user-role": "admin",
@@ -156,21 +154,21 @@ describe("middleware on api routes", () => {
       "/api/auth/profile",
       "/api/auth/role",
     ]) {
-      const response = await middleware(makeRequest(path));
+      const response = await proxy(makeRequest(path));
       expect(response.status).toBe(401);
     }
   });
 
   it("leaves the public /api/auth routes untouched", async () => {
     for (const path of ["/api/auth/login", "/api/auth/register"]) {
-      const response = await middleware(makeRequest(path));
+      const response = await proxy(makeRequest(path));
       expect(response.status).toBe(200);
       expect(response.headers.get("x-user-id")).toBeNull();
     }
   });
 });
 
-describe("middleware on public routes", () => {
+describe("proxy on public routes", () => {
   it("passes through public pages and unknown paths", async () => {
     for (const path of [
       "/",
@@ -179,7 +177,7 @@ describe("middleware on public routes", () => {
       "/contact",
       "/some/unknown/page",
     ]) {
-      const response = await middleware(makeRequest(path));
+      const response = await proxy(makeRequest(path));
       expect(response.headers.get("location")).toBeNull();
       expect(response.status).toBe(200);
     }
