@@ -6,7 +6,7 @@ import type {
 } from "@/types";
 import { getTemplate } from "./content-templates";
 import { procedures } from "./knowledge-base";
-import { createChatCompletion, extractReply, isAIEnabled } from "./openai-client";
+import { createChatCompletion, isAIEnabled } from "./openai-client";
 import { logger } from "@/lib/logger";
 
 const CONTENT_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -58,7 +58,13 @@ async function callOpenAIForContent(
       maxTokens: 1500,
     });
 
-    return extractReply(completion);
+    const reply = completion.choices[0]?.message?.content;
+    if (!reply) {
+      log.warn("content generation returned no content, using fallback");
+      return buildFallbackContent(userPrompt);
+    }
+
+    return reply;
   } catch (error) {
     log.error("content generation failed, using fallback", error);
     return buildFallbackContent(userPrompt);
@@ -153,7 +159,11 @@ ${procExamples[0].description}
 *Индивидуальные результаты могут отличаться. Требуется консультация специалиста.*`;
 }
 
-function parseResult(content: string, templateType: ContentTemplateType, _platform: ContentPlatform): ContentGenerationResult {
+function parseResult(
+  content: string,
+  templateType: ContentTemplateType,
+  _platform: ContentPlatform,
+): ContentGenerationResult {
   const hashtagRegex = /#[^\s#]+/g;
   const hashtags = content.match(hashtagRegex) ?? [];
   const uniqueHashtags = Array.from(new Set(hashtags));
@@ -173,7 +183,10 @@ function parseResult(content: string, templateType: ContentTemplateType, _platfo
     content,
     hashtags: uniqueHashtags.length > 0 ? uniqueHashtags : undefined,
     subjectLine,
-    metaDescription: templateType === "seo_description" ? content.split("\n")[1]?.slice(0, 160) : undefined,
+    metaDescription:
+      templateType === "seo_description"
+        ? content.split("\n")[1]?.slice(0, 160)
+        : undefined,
     seoKeywords: metaKeywords.length > 0 ? metaKeywords : undefined,
     wordCount,
   };
@@ -182,9 +195,21 @@ function parseResult(content: string, templateType: ContentTemplateType, _platfo
 function extractSeoKeywords(text: string): string[] {
   const keywords: Set<string> = new Set();
   const cosmetologyTerms = [
-    "косметолог", "косметология", "процедура", "кожа", "уход",
-    "омоложение", "лицо", "инъекции", "филлеры", "биоревитализация",
-    "пилинг", "ботокс", "мезотерапия", "чистка лица", "салон красоты",
+    "косметолог",
+    "косметология",
+    "процедура",
+    "кожа",
+    "уход",
+    "омоложение",
+    "лицо",
+    "инъекции",
+    "филлеры",
+    "биоревитализация",
+    "пилинг",
+    "ботокс",
+    "мезотерапия",
+    "чистка лица",
+    "салон красоты",
   ];
 
   for (const term of cosmetologyTerms) {
@@ -205,7 +230,16 @@ function extractSeoKeywords(text: string): string[] {
 export async function generateContent(
   request: ContentGenerationRequest,
 ): Promise<ContentGenerationResult> {
-  const { platform, templateType, topic, audience, tone, length = "medium", service, seoKeywords } = request;
+  const {
+    platform,
+    templateType,
+    topic,
+    audience,
+    tone,
+    length = "medium",
+    service,
+    seoKeywords,
+  } = request;
   const template = getTemplate(templateType);
 
   const prompt = template.promptBuilder({
@@ -321,7 +355,8 @@ ${procExamples.map((p) => `• ${p.name} — ${p.description.slice(0, 60)}...`).
 
 #зимнийуход #косметология #салонкрасоты #акция #уходзалицом #косметолог #красота #омоложение #пилингзимой`,
 
-    seo_description: `# ${service || topic} — профессиональная процедура для вашей кожи
+    seo_description:
+      `# ${service || topic} — профессиональная процедура для вашей кожи
 
 ${topic} — одна из самых востребованных процедур в современной косметологии. Доверьтесь профессионалам для достижения максимального результата.
 

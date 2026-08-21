@@ -3,14 +3,25 @@
 import { useState, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  FormError,
+  PasswordField,
+  usePasswordVisibility,
+} from "@/components/auth/form-fields";
+import { Lock } from "lucide-react";
 
 function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const { visible: showPassword, toggle: togglePassword } =
+    usePasswordVisibility();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -21,8 +32,12 @@ function ResetPasswordForm() {
     return (
       <Card className="shadow-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-destructive font-heading">Invalid Link</CardTitle>
-          <CardDescription>This password reset link is invalid or has expired.</CardDescription>
+          <CardTitle className="text-destructive font-heading">
+            Invalid Link
+          </CardTitle>
+          <CardDescription>
+            This password reset link is invalid or has expired.
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -62,56 +77,36 @@ function ResetPasswordForm() {
   return (
     <Card className="shadow-lg">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-heading">Reset Password</CardTitle>
+        <CardTitle className="font-heading text-2xl">Reset Password</CardTitle>
         <CardDescription>Enter your new password</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">New Password</label>
-            <div className="relative">
-              <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Min 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-10 pl-9 pr-9"
-                required
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm New Password</label>
-            <div className="relative">
-              <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="confirmPassword"
-                type={showPassword ? "text" : "password"}
-                placeholder="Re-enter password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="h-10 pl-9"
-                required
-                autoComplete="new-password"
-              />
-            </div>
-          </div>
-          <Button type="submit" className="w-full h-10" disabled={loading}>
+          <FormError message={error} />
+          <PasswordField
+            id="password"
+            label="New Password"
+            icon={Lock}
+            placeholder="Min 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+            visible={showPassword}
+            onToggleVisibility={togglePassword}
+          />
+          <PasswordField
+            id="confirmPassword"
+            label="Confirm New Password"
+            icon={Lock}
+            placeholder="Re-enter password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+            visible={showPassword}
+          />
+          <Button type="submit" className="h-10 w-full" disabled={loading}>
             {loading ? "Resetting..." : "Reset Password"}
           </Button>
         </form>

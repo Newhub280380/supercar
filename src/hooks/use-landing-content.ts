@@ -15,16 +15,17 @@ export function useLandingContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ step: "landing" }),
       });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.landing) {
-          setData(json.landing);
-          return;
-        }
+      if (!res.ok) {
+        throw new Error(`Failed to load landing content: ${res.status}`);
       }
-      const content = await generateLandingContent([], []);
-      setData(content);
-    } catch {
+      const json = await res.json();
+      if (json.landing) {
+        setData(json.landing);
+        return;
+      }
+      throw new Error("Landing content missing from response");
+    } catch (err) {
+      console.error("Falling back to locally generated landing content:", err);
       const content = await generateLandingContent([], []);
       setData(content);
     } finally {

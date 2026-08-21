@@ -42,6 +42,12 @@ export default function DashboardLayout({
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    const { error } = await logout();
+    setLogoutError(error ?? null);
+  };
 
   const initials = (user?.name || "C")
     .split(" ")
@@ -50,18 +56,18 @@ export default function DashboardLayout({
     .toUpperCase();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="bg-background flex h-screen overflow-hidden">
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border bg-card transition-all duration-300 lg:static",
+          "border-border bg-card fixed inset-y-0 left-0 z-40 flex flex-col border-r transition-all duration-300 lg:static",
           collapsed ? "w-16" : "w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+        <div className="border-border flex h-14 items-center justify-between border-b px-4">
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-lg">
                 <Sparkles className="size-4" />
               </div>
               <span className="font-heading text-sm font-semibold">CRM</span>
@@ -69,13 +75,17 @@ export default function DashboardLayout({
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground hidden size-7 items-center justify-center rounded-lg transition-colors lg:flex"
           >
-            {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+            {collapsed ? (
+              <ChevronRight className="size-4" />
+            ) : (
+              <ChevronLeft className="size-4" />
+            )}
           </button>
           <button
             onClick={() => setMobileOpen(false)}
-            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground lg:hidden"
+            className="text-muted-foreground flex size-7 items-center justify-center rounded-lg lg:hidden"
           >
             <ChevronLeft className="size-4" />
           </button>
@@ -84,7 +94,8 @@ export default function DashboardLayout({
         <nav className="flex-1 overflow-y-auto p-2">
           <div className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href ||
+              const isActive =
+                pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
               const isExact = pathname === item.href;
 
@@ -111,16 +122,25 @@ export default function DashboardLayout({
           </div>
         </nav>
 
-        <div className="border-t border-border p-3">
-          <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
+        <div className="border-border border-t p-3">
+          <div
+            className={cn(
+              "flex items-center gap-3",
+              collapsed && "justify-center",
+            )}
+          >
             <Avatar size="sm">
               <AvatarImage src={user?.avatar || undefined} />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex flex-1 flex-col overflow-hidden">
-                <span className="truncate text-sm font-medium">{user?.name || "Косметолог"}</span>
-                <span className="truncate text-xs text-muted-foreground">{user?.email || ""}</span>
+                <span className="truncate text-sm font-medium">
+                  {user?.name || "Косметолог"}
+                </span>
+                <span className="text-muted-foreground truncate text-xs">
+                  {user?.email || ""}
+                </span>
               </div>
             )}
           </div>
@@ -132,32 +152,41 @@ export default function DashboardLayout({
               <Button variant="ghost" size="icon-sm" className="flex-1">
                 <Bell className="size-3.5" />
               </Button>
-              <Button variant="ghost" size="icon-sm" onClick={() => logout()} className="flex-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleLogout}
+                className="flex-1"
+              >
                 <LogOut className="size-3.5" />
               </Button>
             </div>
+          )}
+          {!collapsed && logoutError && (
+            <p className="text-destructive mt-2 text-xs">{logoutError}</p>
           )}
         </div>
       </div>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center border-b border-border bg-card px-4 lg:hidden">
+        <header className="border-border bg-card flex h-14 items-center border-b px-4 lg:hidden">
           <button
             onClick={() => setMobileOpen(true)}
-            className="mr-3 flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+            className="text-muted-foreground hover:bg-muted mr-3 flex size-8 items-center justify-center rounded-lg"
           >
             <Menu className="size-5" />
           </button>
           <span className="font-heading text-sm font-semibold">CRM Панель</span>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

@@ -53,7 +53,8 @@ function loadSavedItems(): ContentItem[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
-  } catch {
+  } catch (err) {
+    console.error(`Failed to read "${STORAGE_KEY}" from localStorage:`, err);
     return [];
   }
 }
@@ -62,9 +63,22 @@ function loadSettings(): ContentGenerationSettings {
   if (typeof window === "undefined") return DEFAULT_SETTINGS;
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
-    return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
-  } catch {
+    return stored
+      ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) }
+      : DEFAULT_SETTINGS;
+  } catch (err) {
+    console.error(`Failed to read "${SETTINGS_KEY}" from localStorage:`, err);
     return DEFAULT_SETTINGS;
+  }
+}
+
+function persist(key: string, value: unknown): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.error(`Failed to write "${key}" to localStorage:`, err);
+    return false;
   }
 }
 
@@ -72,7 +86,8 @@ export function useContentGenerator(): UseContentGeneratorReturn {
   const [result, setResult] = useState<ContentGenerationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState<ContentGenerationSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] =
+    useState<ContentGenerationSettings>(DEFAULT_SETTINGS);
   const [savedItems, setSavedItems] = useState<ContentItem[]>([]);
 
   useEffect(() => {
@@ -100,7 +115,8 @@ export function useContentGenerator(): UseContentGeneratorReturn {
         tone: settings.tone,
         length: settings.length,
         service: settings.service || undefined,
-        seoKeywords: settings.seoKeywords.length > 0 ? settings.seoKeywords : undefined,
+        seoKeywords:
+          settings.seoKeywords.length > 0 ? settings.seoKeywords : undefined,
       };
 
       const response = await fetch("/api/content", {
@@ -110,14 +126,15 @@ export function useContentGenerator(): UseContentGeneratorReturn {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Ошибка генерации");
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || `Ошибка генерации (${response.status})`);
       }
 
       const data = await response.json();
       setResult(data);
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      persist(SETTINGS_KEY, settings);
     } catch (err) {
+      console.error("Content generation failed:", err);
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
       setIsLoading(false);
@@ -135,22 +152,25 @@ export function useContentGenerator(): UseContentGeneratorReturn {
         id: `content-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         createdAt: new Date().toISOString(),
       };
-      setSavedItems((prev) => {
-        const updated = [newItem, ...prev];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        return updated;
-      });
+      const updated = [newItem, ...savedItems];
+      setSavedItems(updated);
+      if (!persist(STORAGE_KEY, updated)) {
+        setError("Не удалось сохранить контент в браузере");
+      }
     },
-    [],
+    [savedItems],
   );
 
-  const deleteItem = useCallback((id: string) => {
-    setSavedItems((prev) => {
-      const updated = prev.filter((i) => i.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+  const deleteItem = useCallback(
+    (id: string) => {
+      const updated = savedItems.filter((i) => i.id !== id);
+      setSavedItems(updated);
+      if (!persist(STORAGE_KEY, updated)) {
+        setError("Не удалось обновить сохранённый контент в браузере");
+      }
+    },
+    [savedItems],
+  );
 
   return {
     result,

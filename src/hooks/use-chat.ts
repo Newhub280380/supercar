@@ -42,10 +42,16 @@ const log = {
 function toMessage(m: unknown): Message {
   const raw = m as Partial<Message>;
   return {
-    id: typeof raw?.id === "string" ? raw.id : `msg-${Math.random().toString(36).slice(2)}`,
+    id:
+      typeof raw?.id === "string"
+        ? raw.id
+        : `msg-${Math.random().toString(36).slice(2)}`,
     role: raw?.role === "assistant" ? "assistant" : "user",
     content: typeof raw?.content === "string" ? raw.content : "",
-    timestamp: typeof raw?.timestamp === "string" ? raw.timestamp : new Date().toISOString(),
+    timestamp:
+      typeof raw?.timestamp === "string"
+        ? raw.timestamp
+        : new Date().toISOString(),
   };
 }
 
@@ -67,41 +73,49 @@ export function useChat() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch("/api/conversations", { signal: abortRef.current?.signal });
-      if (res.ok) {
-        const data = await res.json();
-        const conversations: Conversation[] = Array.isArray(data.conversations)
-          ? data.conversations.map((c: unknown) => {
-              const conv = c as Partial<Conversation>;
-              return {
-                id: String(conv?.id ?? ""),
-                topic: conv?.topic ?? null,
-                messages: Array.isArray(conv?.messages)
-                  ? conv.messages.map(toMessage)
-                  : [],
-                createdAt: conv?.createdAt ?? new Date().toISOString(),
-                updatedAt: conv?.updatedAt ?? new Date().toISOString(),
-              };
-            })
-          : [];
-
-        setState((s) => {
-          const activeId = s.activeConversationId;
-          let messages = s.messages;
-
-          if (activeId && messages.length === 0) {
-            const active = conversations.find((c) => c.id === activeId);
-            if (active) {
-              messages = active.messages;
-            }
-          }
-
-          return { ...s, conversations, messages };
-        });
+      const res = await fetch("/api/conversations", {
+        signal: abortRef.current?.signal,
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to load conversations: ${res.status}`);
       }
+
+      const data = await res.json();
+      const conversations: Conversation[] = Array.isArray(data.conversations)
+        ? data.conversations.map((c: unknown) => {
+            const conv = c as Partial<Conversation>;
+            return {
+              id: String(conv?.id ?? ""),
+              topic: conv?.topic ?? null,
+              messages: Array.isArray(conv?.messages)
+                ? conv.messages.map(toMessage)
+                : [],
+              createdAt: conv?.createdAt ?? new Date().toISOString(),
+              updatedAt: conv?.updatedAt ?? new Date().toISOString(),
+            };
+          })
+        : [];
+
+      setState((s) => {
+        const activeId = s.activeConversationId;
+        let messages = s.messages;
+
+        if (activeId && messages.length === 0) {
+          const active = conversations.find((c) => c.id === activeId);
+          if (active) {
+            messages = active.messages;
+          }
+        }
+
+        return { ...s, conversations, messages };
+      });
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       log.error("fetchConversations failed", err);
+      setState((s) => ({
+        ...s,
+        error: "Не удалось загрузить историю диалогов",
+      }));
     }
   }, []);
 
@@ -119,30 +133,27 @@ export function useChat() {
     });
   }, []);
 
-  const selectConversation = useCallback(
-    (convId: string) => {
-      setState((s) => {
-        const conv = s.conversations.find((c) => c.id === convId);
-        if (!conv) return s;
-        if (typeof window !== "undefined") {
-          try {
-            localStorage.setItem(ACTIVE_CONV_KEY, convId);
-          } catch {
-            // ignore
-          }
+  const selectConversation = useCallback((convId: string) => {
+    setState((s) => {
+      const conv = s.conversations.find((c) => c.id === convId);
+      if (!conv) return s;
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(ACTIVE_CONV_KEY, convId);
+        } catch {
+          // ignore
         }
-        return {
-          ...s,
-          activeConversationId: convId,
-          messages: conv.messages,
-          error: null,
-          relatedProcedures: [],
-          relatedFAQ: [],
-        };
-      });
-    },
-    [],
-  );
+      }
+      return {
+        ...s,
+        activeConversationId: convId,
+        messages: conv.messages,
+        error: null,
+        relatedProcedures: [],
+        relatedFAQ: [],
+      };
+    });
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -211,19 +222,14 @@ export function useChat() {
         }
 
         if (!res.ok) {
-          let errorMsg = "Ошибка отправки";
-          try {
-            const err = await res.json();
-            if (err?.error) errorMsg = err.error;
-          } catch {
-            // response was not JSON
-          }
+          const err = await res.json().catch(() => null);
+          log.error("chat request failed", res.status, err);
           removeOptimistic();
           setState((s) => ({
             ...s,
             isLoading: false,
             isStreaming: false,
-            error: errorMsg,
+            error: err?.error || "Ошибка отправки",
           }));
           return;
         }
@@ -262,7 +268,10 @@ export function useChat() {
                   ...s,
                   activeConversationId: event.conversationId,
                 }));
-              } else if (event.type === "token" && typeof event.token === "string") {
+              } else if (
+                event.type === "token" &&
+                typeof event.token === "string"
+              ) {
                 receivedAnyToken = true;
                 setState((s) => ({
                   ...s,
@@ -274,7 +283,8 @@ export function useChat() {
                   ),
                 }));
               } else if (event.type === "done") {
-                if (event.conversationId) finalConversationId = event.conversationId;
+                if (event.conversationId)
+                  finalConversationId = event.conversationId;
                 if (Array.isArray(event.relatedProcedures)) {
                   finalRelatedProcedures = event.relatedProcedures.filter(
                     (p: unknown) => typeof p === "string",
@@ -411,38 +421,42 @@ export function useChat() {
     }));
   }, []);
 
-  const deleteConversation = useCallback(
-    async (convId: string) => {
-      try {
-        await fetch(`/api/conversations?id=${convId}`, { method: "DELETE" });
-        setState((s) => {
-          const isActive = s.activeConversationId === convId;
-          if (isActive && typeof window !== "undefined") {
-            try {
-              localStorage.removeItem(ACTIVE_CONV_KEY);
-            } catch {
-              // ignore
-            }
-          }
-          return {
-            ...s,
-            conversations: s.conversations.filter((c) => c.id !== convId),
-            ...(isActive
-              ? {
-                  activeConversationId: null,
-                  messages: [],
-                  relatedProcedures: [],
-                  relatedFAQ: [],
-                }
-              : {}),
-          };
-        });
-      } catch (err) {
-        log.error("deleteConversation failed", err);
+  const deleteConversation = useCallback(async (convId: string) => {
+    try {
+      const res = await fetch(`/api/conversations?id=${convId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to delete conversation: ${res.status}`);
       }
-    },
-    [],
-  );
+      setState((s) => {
+        const isActive = s.activeConversationId === convId;
+        if (isActive && typeof window !== "undefined") {
+          try {
+            localStorage.removeItem(ACTIVE_CONV_KEY);
+          } catch {
+            // ignore
+          }
+        }
+        return {
+          ...s,
+          error: null,
+          conversations: s.conversations.filter((c) => c.id !== convId),
+          ...(isActive
+            ? {
+                activeConversationId: null,
+                messages: [],
+                relatedProcedures: [],
+                relatedFAQ: [],
+              }
+            : {}),
+        };
+      });
+    } catch (err) {
+      log.error("deleteConversation failed", err);
+      setState((s) => ({ ...s, error: "Не удалось удалить диалог" }));
+    }
+  }, []);
 
   const setTone = useCallback((tone: "professional" | "friendly") => {
     setState((s) => ({ ...s, tone }));

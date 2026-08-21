@@ -4,6 +4,7 @@ import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Plus, Trash2, Clock } from "lucide-react";
 import type { Conversation } from "@/hooks/use-chat";
+import { formatDate } from "@/lib/format";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -27,7 +28,7 @@ export const ConversationList = memo(function ConversationList({
         <button
           type="button"
           onClick={onNew}
-          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center rounded-lg transition-colors"
         >
           <Plus className="size-4" />
         </button>
@@ -35,7 +36,7 @@ export const ConversationList = memo(function ConversationList({
 
       <div className="flex-1 overflow-y-auto px-2 pb-4">
         {conversations.length === 0 ? (
-          <div className="px-2 py-8 text-center text-sm text-muted-foreground">
+          <div className="text-muted-foreground px-2 py-8 text-center text-sm">
             <MessageSquare className="mx-auto mb-2 size-8 opacity-30" />
             Начните новый диалог
           </div>
@@ -57,7 +58,7 @@ export const ConversationList = memo(function ConversationList({
                 className={cn(
                   "group mb-1 flex cursor-pointer items-start gap-3 rounded-xl p-3 transition-all",
                   isActive
-                    ? "bg-primary/10 ring-1 ring-primary/20"
+                    ? "bg-primary/10 ring-primary/20 ring-1"
                     : "hover:bg-muted/50",
                 )}
               >
@@ -71,17 +72,17 @@ export const ConversationList = memo(function ConversationList({
                 >
                   <MessageSquare className="size-4" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-sm font-medium">
                       {conv.topic || "Новый диалог"}
                     </p>
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+                    <div className="text-muted-foreground flex shrink-0 items-center gap-1 text-[10px]">
                       <Clock className="size-3" />
                       {timeAgo}
                     </div>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="text-muted-foreground mt-0.5 truncate text-xs">
                     {conv.messages?.length || 0} сообщ.
                   </p>
                 </div>
@@ -91,7 +92,7 @@ export const ConversationList = memo(function ConversationList({
                     e.stopPropagation();
                     onDelete(conv.id);
                   }}
-                  className="flex size-6 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                  className="hover:bg-destructive/10 hover:text-destructive flex size-6 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -114,5 +115,5 @@ function getTimeAgo(date: Date): string {
   if (hours < 24) return `${hours} ч`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} д`;
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  return formatDate(date, "dayMonth");
 }

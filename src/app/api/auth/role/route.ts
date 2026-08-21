@@ -1,24 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getSession, VALID_ROLES } from "@/lib/auth";
+import { withSession } from "@/lib/api/handlers";
+import { badRequest, notFound } from "@/lib/api/response";
+import { toAuthUser } from "@/lib/auth/serialize";
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const SELF_SELECTABLE_ROLES = ["cosmetologist", "client"];
 
+export const PATCH = withSession(
+  "Role update error",
+  async (session, request) => {
     const body = await request.json();
     const { role } = body;
 
-    if (!role || !VALID_ROLES.includes(role)) {
-      return NextResponse.json(
-        { error: "Invalid role. Must be: admin, cosmetologist, or client" },
-        { status: 400 },
-      );
+    if (!role || !SELF_SELECTABLE_ROLES.includes(role)) {
+      return badRequest("Invalid role. Must be: cosmetologist or client");
     }
 
     const user = await db.query.users.findFirst({
@@ -26,14 +23,11 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return notFound("User not found");
     }
 
     if (user.role !== "client") {
-      return NextResponse.json(
-        { error: "Role can only be selected once during registration" },
-        { status: 400 },
-      );
+      return badRequest("Role can only be selected once during registration");
     }
 
     const [updatedUser] = await db
@@ -42,17 +36,6 @@ export async function PATCH(request: NextRequest) {
       .where(eq(users.id, session.sub))
       .returning();
 
-    return NextResponse.json({
-      id: updatedUser.id,
-      email: updatedUser.email,
-      name: updatedUser.name,
-      role: updatedUser.role,
-      avatar: updatedUser.avatar,
-    });
-  } catch {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+    return NextResponse.json(toAuthUser(updatedUser));
+  },
+);

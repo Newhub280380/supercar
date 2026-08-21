@@ -3,18 +3,24 @@ import { db } from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { PASSWORD_RESET_EXPIRES_MINUTES } from "@/lib/auth";
+import { withRateLimit } from "@/lib/api/handlers";
+import { isNonEmptyString } from "@/lib/api/request";
+import { badRequest, withErrorHandling } from "@/lib/api/response";
+import { getAppBaseUrl } from "@/lib/env";
 import crypto from "crypto";
 
-export async function POST(request: NextRequest) {
-  try {
+const GENERIC_RESPONSE = {
+  message: "If the email exists, a reset link has been sent",
+};
+
+export const POST = withErrorHandling(
+  "Forgot password error",
+  withRateLimit("forgot-password", 5, async (request: NextRequest) => {
     const body = await request.json();
     const { email } = body;
 
-    if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 },
-      );
+    if (!isNonEmptyString(email)) {
+      return badRequest("Email is required");
     }
 
     const user = await db.query.users.findFirst({
@@ -22,14 +28,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { message: "If the email exists, a reset link has been sent" },
-        { status: 200 },
-      );
+      return NextResponse.json(GENERIC_RESPONSE);
     }
 
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60 * 1000,
+    );
 
     await db.insert(passwordResetTokens).values({
       userId: user.id,
@@ -37,24 +42,13 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const resetUrl = `${appUrl}/auth/reset-password?token=${token}`;
-
+    // TODO: integrate email service (SendGrid/Mailgun) for production
     if (process.env.NODE_ENV === "development") {
-      console.log(`[Password Reset] ${resetUrl}`);
+      console.log(
+        `[Password Reset] ${getAppBaseUrl()}/auth/reset-password?token=${token}`,
+      );
     }
 
-    // TODO: integrate email service (SendGrid/Mailgun) for production
-    console.log(`Password reset token created for user ${user.id}: ${resetUrl}`);
-
-    return NextResponse.json(
-      { message: "If the email exists, a reset link has been sent" },
-      { status: 200 },
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+    return NextResponse.json(GENERIC_RESPONSE);
+  }),
+);

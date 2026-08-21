@@ -1,14 +1,14 @@
-import { test, before, after } from "node:test";
+import { test, beforeAll, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { generateAIResponse, streamAIResponse } from "@/lib/ai";
 
 const originalKey = process.env.OPENAI_API_KEY;
 
-before(() => {
+beforeAll(() => {
   delete process.env.OPENAI_API_KEY;
 });
 
-after(() => {
+afterAll(() => {
   if (originalKey !== undefined) {
     process.env.OPENAI_API_KEY = originalKey;
   } else {

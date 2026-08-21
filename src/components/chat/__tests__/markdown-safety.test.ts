@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -16,7 +16,10 @@ function makeMessage(content: unknown): Message {
 
 function render(content: unknown): string {
   return renderToStaticMarkup(
-    createElement(ChatMessage, { message: makeMessage(content), isLatest: true }),
+    createElement(ChatMessage, {
+      message: makeMessage(content),
+      isLatest: true,
+    }),
   );
 }
 
@@ -42,7 +45,12 @@ test("ChatMessage renders normal markdown content", () => {
 test("ChatMessage handles invalid timestamp without showing 'Invalid Date'", () => {
   const html = renderToStaticMarkup(
     createElement(ChatMessage, {
-      message: { id: "m1", role: "user", content: "hi", timestamp: "not-a-date" } as Message,
+      message: {
+        id: "m1",
+        role: "user",
+        content: "hi",
+        timestamp: "not-a-date",
+      } as Message,
       isLatest: false,
     }),
   );

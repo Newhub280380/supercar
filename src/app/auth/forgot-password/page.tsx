@@ -3,8 +3,15 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FormError, IconField } from "@/components/auth/form-fields";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
 
 export default function ForgotPasswordPage() {
@@ -45,9 +52,12 @@ export default function ForgotPasswordPage() {
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
             <CheckCircle className="size-6 text-green-600 dark:text-green-400" />
           </div>
-          <CardTitle className="text-2xl font-heading">Check Your Email</CardTitle>
+          <CardTitle className="font-heading text-2xl">
+            Check Your Email
+          </CardTitle>
           <CardDescription>
-            We&apos;ve sent a password reset link to <strong>{email}</strong>. Please check your inbox and follow the instructions.
+            We&apos;ve sent a password reset link to <strong>{email}</strong>.
+            Please check your inbox and follow the instructions.
           </CardDescription>
         </CardHeader>
         <CardFooter className="flex justify-center">
@@ -65,39 +75,37 @@ export default function ForgotPasswordPage() {
   return (
     <Card className="shadow-lg">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-heading">Forgot Password?</CardTitle>
-        <CardDescription>Enter your email and we&apos;ll send you a reset link</CardDescription>
+        <CardTitle className="font-heading text-2xl">
+          Forgot Password?
+        </CardTitle>
+        <CardDescription>
+          Enter your email and we&apos;ll send you a reset link
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">Email</label>
-            <div className="relative">
-              <Mail className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-10 pl-9"
-                required
-                autoComplete="email"
-              />
-            </div>
-          </div>
-          <Button type="submit" className="w-full h-10" disabled={loading}>
+          <FormError message={error} />
+          <IconField
+            id="email"
+            label="Email"
+            icon={Mail}
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+          <Button type="submit" className="h-10 w-full" disabled={loading}>
             {loading ? "Sending..." : "Send Reset Link"}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
-        <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+        <Link
+          href="/auth/login"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
+        >
           <ArrowLeft className="size-4" />
           Back to Login
         </Link>

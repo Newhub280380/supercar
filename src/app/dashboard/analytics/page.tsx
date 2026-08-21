@@ -67,6 +67,7 @@ import {
   exportAnalyticsPdf,
   exportAnalyticsExcel,
 } from "@/lib/analytics-export";
+import { formatCompactCurrency, formatNumber } from "@/lib/format";
 
 const CHART_COLORS = [
   "var(--chart-1)",
@@ -75,16 +76,6 @@ const CHART_COLORS = [
   "var(--chart-4)",
   "var(--chart-5)",
 ];
-
-function formatCurrency(value: number): string {
-  if (value >= 1000000) return `₽${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `₽${(value / 1000).toFixed(0)}k`;
-  return `₽${value.toLocaleString("ru-RU")}`;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString("ru-RU");
-}
 
 function BusinessHealthCard() {
   const health = calculateBusinessHealth();
@@ -103,7 +94,11 @@ function BusinessHealthCard() {
         : "bg-red-100 dark:bg-red-950/40";
 
   const scoreLabel =
-    health.score >= 80 ? "Отлично" : health.score >= 60 ? "Хорошо" : "Требует внимания";
+    health.score >= 80
+      ? "Отлично"
+      : health.score >= 60
+        ? "Хорошо"
+        : "Требует внимания";
 
   const circumference = 2 * Math.PI * 45;
   const strokeDasharray = `${(health.score / 100) * circumference} ${circumference}`;
@@ -112,7 +107,7 @@ function BusinessHealthCard() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Heart className="size-4 text-primary" />
+          <Heart className="text-primary size-4" />
           <CardTitle>Здоровье бизнеса</CardTitle>
         </div>
         <CardDescription>Комплексная оценка состояния</CardDescription>
@@ -150,8 +145,10 @@ function BusinessHealthCard() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn("text-2xl font-bold", scoreColor)}>{health.score}</span>
-              <span className="text-[10px] text-muted-foreground">/100</span>
+              <span className={cn("text-2xl font-bold", scoreColor)}>
+                {health.score}
+              </span>
+              <span className="text-muted-foreground text-[10px]">/100</span>
             </div>
           </div>
         </div>
@@ -166,7 +163,9 @@ function BusinessHealthCard() {
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Средний чек</span>
-            <span className="font-medium">₽{formatNumber(health.avgCheck)}</span>
+            <span className="font-medium">
+              ₽{formatNumber(health.avgCheck)}
+            </span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Рост новых клиентов</span>
@@ -175,7 +174,13 @@ function BusinessHealthCard() {
             </span>
           </div>
         </div>
-        <div className={cn("mt-3 rounded-lg p-2 text-center text-xs font-medium", scoreBg, scoreColor)}>
+        <div
+          className={cn(
+            "mt-3 rounded-lg p-2 text-center text-xs font-medium",
+            scoreBg,
+            scoreColor,
+          )}
+        >
           {scoreLabel}
         </div>
       </CardContent>
@@ -184,11 +189,34 @@ function BusinessHealthCard() {
 }
 
 function InsightTypeBadge({ type }: { type: string }) {
-  const config: Record<string, { icon: React.ElementType; className: string; label: string }> = {
-    positive: { icon: TrendingUpIcon, className: "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400", label: "Рост" },
-    warning: { icon: AlertTriangle, className: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400", label: "Внимание" },
-    suggestion: { icon: Lightbulb, className: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400", label: "Совет" },
-    trend: { icon: Sparkles, className: "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400", label: "Тренд" },
+  const config: Record<
+    string,
+    { icon: React.ElementType; className: string; label: string }
+  > = {
+    positive: {
+      icon: TrendingUpIcon,
+      className:
+        "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400",
+      label: "Рост",
+    },
+    warning: {
+      icon: AlertTriangle,
+      className:
+        "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+      label: "Внимание",
+    },
+    suggestion: {
+      icon: Lightbulb,
+      className:
+        "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+      label: "Совет",
+    },
+    trend: {
+      icon: Sparkles,
+      className:
+        "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400",
+      label: "Тренд",
+    },
   };
 
   const c = config[type] || config.suggestion;
@@ -208,18 +236,20 @@ function AIInsightsPanel() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" />
+            <Sparkles className="text-primary size-4" />
             <CardTitle>AI-рекомендации</CardTitle>
           </div>
           <Badge variant="secondary">{aiInsights.length} инсайтов</Badge>
         </div>
-        <CardDescription>Автоматический анализ данных и бизнес-советы</CardDescription>
+        <CardDescription>
+          Автоматический анализ данных и бизнес-советы
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {aiInsights.map((insight) => (
           <div
             key={insight.id}
-            className="rounded-lg border border-border/50 p-3 transition-colors hover:bg-muted/30"
+            className="border-border/50 hover:bg-muted/30 rounded-lg border p-3 transition-colors"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
@@ -227,7 +257,9 @@ function AIInsightsPanel() {
                   <span className="text-sm font-medium">{insight.title}</span>
                   <InsightTypeBadge type={insight.type} />
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{insight.description}</p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {insight.description}
+                </p>
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between">
@@ -242,7 +274,12 @@ function AIInsightsPanel() {
                       : "border-border text-muted-foreground",
                 )}
               >
-                {insight.impact === "high" ? "Высокий" : insight.impact === "medium" ? "Средний" : "Низкий"} приоритет
+                {insight.impact === "high"
+                  ? "Высокий"
+                  : insight.impact === "medium"
+                    ? "Средний"
+                    : "Низкий"}{" "}
+                приоритет
               </Badge>
               <Button variant="ghost" size="xs">
                 {insight.actionLabel}
@@ -277,11 +314,17 @@ function HeatmapChart() {
             <CardDescription>Heatmap загруженности расписания</CardDescription>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground">Меньше</span>
-            {["bg-muted/30", "bg-primary/20", "bg-primary/40", "bg-primary/60", "bg-primary/90"].map((c, i) => (
+            <span className="text-muted-foreground text-[10px]">Меньше</span>
+            {[
+              "bg-muted/30",
+              "bg-primary/20",
+              "bg-primary/40",
+              "bg-primary/60",
+              "bg-primary/90",
+            ].map((c, i) => (
               <div key={i} className={cn("size-3 rounded-sm", c)} />
             ))}
-            <span className="text-[10px] text-muted-foreground">Больше</span>
+            <span className="text-muted-foreground text-[10px]">Больше</span>
           </div>
         </div>
       </CardHeader>
@@ -291,16 +334,23 @@ function HeatmapChart() {
             <div className="flex">
               <div className="w-8 shrink-0" />
               {heatmapHours.map((h) => (
-                <div key={h} className="flex-1 text-center text-[10px] text-muted-foreground">
+                <div
+                  key={h}
+                  className="text-muted-foreground flex-1 text-center text-[10px]"
+                >
                   {h}
                 </div>
               ))}
             </div>
             {heatmapDays.map((day, dayIdx) => (
               <div key={day} className="flex items-center">
-                <div className="w-8 shrink-0 text-[10px] text-muted-foreground">{day}</div>
+                <div className="text-muted-foreground w-8 shrink-0 text-[10px]">
+                  {day}
+                </div>
                 {heatmapHours.map((hour) => {
-                  const cell = data.find((d) => d.day === dayIdx && d.hour === hour);
+                  const cell = data.find(
+                    (d) => d.day === dayIdx && d.hour === hour,
+                  );
                   return (
                     <div
                       key={hour}
@@ -339,20 +389,60 @@ function ForecastChart() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <defs>
-                <linearGradient id="forecastGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
+                <linearGradient
+                  id="forecastGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="5%"
+                    stopColor="var(--chart-2)"
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--chart-2)"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
-                <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.1} />
-                  <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
+                <linearGradient
+                  id="confidenceGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="5%"
+                    stopColor="var(--chart-2)"
+                    stopOpacity={0.1}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--chart-2)"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="month" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-              <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} tickFormatter={(v) => formatCurrency(v)} />
+              <XAxis
+                dataKey="month"
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+              />
+              <YAxis
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+                tickFormatter={(v) => formatCompactCurrency(v)}
+              />
               <Tooltip
-                formatter={(value) => [typeof value === "number" ? formatCurrency(value) : "—"]}
+                formatter={(value) => [
+                  typeof value === "number"
+                    ? formatCompactCurrency(value)
+                    : "—",
+                ]}
                 contentStyle={{
                   backdropFilter: "blur(8px)",
                   backgroundColor: "var(--popover)",
@@ -404,12 +494,12 @@ function ForecastChart() {
         </div>
         <div className="mt-2 flex items-center justify-center gap-4">
           <div className="flex items-center gap-1.5">
-            <div className="h-0.5 w-4 bg-chart-1" />
-            <span className="text-[10px] text-muted-foreground">Факт</span>
+            <div className="bg-chart-1 h-0.5 w-4" />
+            <span className="text-muted-foreground text-[10px]">Факт</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="h-0.5 w-4 border-t border-dashed border-chart-2" />
-            <span className="text-[10px] text-muted-foreground">Прогноз</span>
+            <div className="border-chart-2 h-0.5 w-4 border-t border-dashed" />
+            <span className="text-muted-foreground text-[10px]">Прогноз</span>
           </div>
         </div>
       </CardContent>
@@ -419,41 +509,98 @@ function ForecastChart() {
 
 function ComparisonSection({ range }: { range: DateRange }) {
   const data = comparisonData[range];
-  const revenueChange = ((data.current.revenue - data.previous.revenue) / data.previous.revenue) * 100;
-  const appointmentsChange = ((data.current.appointments - data.previous.appointments) / data.previous.appointments) * 100;
-  const clientsChange = ((data.current.newClients - data.previous.newClients) / data.previous.newClients) * 100;
+  const revenueChange =
+    ((data.current.revenue - data.previous.revenue) / data.previous.revenue) *
+    100;
+  const appointmentsChange =
+    ((data.current.appointments - data.previous.appointments) /
+      data.previous.appointments) *
+    100;
+  const clientsChange =
+    ((data.current.newClients - data.previous.newClients) /
+      data.previous.newClients) *
+    100;
 
-  const rangeLabels: Record<DateRange, { current: string; previous: string }> = {
-    month: { current: "Этот месяц", previous: "Прошлый месяц" },
-    quarter: { current: "Этот квартал", previous: "Прошлый квартал" },
-    year: { current: "Этот год", previous: "Прошлый год" },
-  };
+  const rangeLabels: Record<DateRange, { current: string; previous: string }> =
+    {
+      month: { current: "Этот месяц", previous: "Прошлый месяц" },
+      quarter: { current: "Этот квартал", previous: "Прошлый квартал" },
+      year: { current: "Этот год", previous: "Прошлый год" },
+    };
 
   const comparisonChartData = [
-    { label: "Доход", current: data.current.revenue, previous: data.previous.revenue },
-    { label: "Записи", current: data.current.appointments * 3500, previous: data.previous.appointments * 3500 },
-    { label: "Клиенты", current: data.current.newClients * 10000, previous: data.previous.newClients * 10000 },
+    {
+      label: "Доход",
+      current: data.current.revenue,
+      previous: data.previous.revenue,
+    },
+    {
+      label: "Записи",
+      current: data.current.appointments * 3500,
+      previous: data.previous.appointments * 3500,
+    },
+    {
+      label: "Клиенты",
+      current: data.current.newClients * 10000,
+      previous: data.previous.newClients * 10000,
+    },
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Сравнение: {rangeLabels[range].current} vs {rangeLabels[range].previous}</CardTitle>
+        <CardTitle>
+          Сравнение: {rangeLabels[range].current} vs{" "}
+          {rangeLabels[range].previous}
+        </CardTitle>
         <CardDescription>Динамика ключевых показателей</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Доход", change: revenueChange, current: data.current.revenue, previous: data.previous.revenue, fmt: formatCurrency },
-            { label: "Записи", change: appointmentsChange, current: data.current.appointments, previous: data.previous.appointments, fmt: (v: number) => String(v) },
-            { label: "Новые клиенты", change: clientsChange, current: data.current.newClients, previous: data.previous.newClients, fmt: (v: number) => String(v) },
+            {
+              label: "Доход",
+              change: revenueChange,
+              current: data.current.revenue,
+              previous: data.previous.revenue,
+              fmt: formatCompactCurrency,
+            },
+            {
+              label: "Записи",
+              change: appointmentsChange,
+              current: data.current.appointments,
+              previous: data.previous.appointments,
+              fmt: (v: number) => String(v),
+            },
+            {
+              label: "Новые клиенты",
+              change: clientsChange,
+              current: data.current.newClients,
+              previous: data.previous.newClients,
+              fmt: (v: number) => String(v),
+            },
           ].map((m) => (
-            <div key={m.label} className="rounded-lg border border-border/50 p-3">
-              <div className="text-xs text-muted-foreground">{m.label}</div>
+            <div
+              key={m.label}
+              className="border-border/50 rounded-lg border p-3"
+            >
+              <div className="text-muted-foreground text-xs">{m.label}</div>
               <div className="mt-1 text-lg font-bold">{m.fmt(m.current)}</div>
-              <div className={cn("flex items-center gap-1 text-xs", m.change >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
-                {m.change >= 0 ? <ArrowUpRight className="size-3" /> : <TrendingDown className="size-3" />}
-                {m.change >= 0 ? "+" : ""}{m.change.toFixed(1)}%
+              <div
+                className={cn(
+                  "flex items-center gap-1 text-xs",
+                  m.change >= 0
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400",
+                )}
+              >
+                {m.change >= 0 ? (
+                  <ArrowUpRight className="size-3" />
+                ) : (
+                  <TrendingDown className="size-3" />
+                )}
+                {m.change >= 0 ? "+" : ""}
+                {m.change.toFixed(1)}%
               </div>
             </div>
           ))}
@@ -462,10 +609,18 @@ function ComparisonSection({ range }: { range: DateRange }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={comparisonChartData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="label" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-              <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} tickFormatter={(v) => formatCurrency(v)} />
+              <XAxis
+                dataKey="label"
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+              />
+              <YAxis
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+                tickFormatter={(v) => formatCompactCurrency(v)}
+              />
               <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
+                formatter={(value) => formatCompactCurrency(Number(value))}
                 contentStyle={{
                   backdropFilter: "blur(8px)",
                   backgroundColor: "var(--popover)",
@@ -475,8 +630,19 @@ function ComparisonSection({ range }: { range: DateRange }) {
                 }}
               />
               <Legend fontSize={11} />
-              <Bar dataKey="previous" name={rangeLabels[range].previous} fill="var(--chart-3)" radius={[4, 4, 0, 0]} opacity={0.5} />
-              <Bar dataKey="current" name={rangeLabels[range].current} fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="previous"
+                name={rangeLabels[range].previous}
+                fill="var(--chart-3)"
+                radius={[4, 4, 0, 0]}
+                opacity={0.5}
+              />
+              <Bar
+                dataKey="current"
+                name={rangeLabels[range].current}
+                fill="var(--chart-1)"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -498,9 +664,23 @@ function ServicePopularityChart() {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" barSize={14}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-              <XAxis type="number" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-              <YAxis type="category" dataKey="name" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} width={120} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--border)"
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+                width={120}
+              />
               <Tooltip
                 contentStyle={{
                   backdropFilter: "blur(8px)",
@@ -510,11 +690,18 @@ function ServicePopularityChart() {
                   fontSize: "12px",
                 }}
                 formatter={(value, name) => [
-                  name === "count" ? `${value} записей` : formatCurrency(Number(value)),
+                  name === "count"
+                    ? `${value} записей`
+                    : formatCompactCurrency(Number(value)),
                   name === "count" ? "Записи" : "Доход",
                 ]}
               />
-              <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 4, 4, 0]} name="count" />
+              <Bar
+                dataKey="count"
+                fill="var(--chart-1)"
+                radius={[0, 4, 4, 0]}
+                name="count"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -546,7 +733,10 @@ function ClientSegmentChart() {
                   paddingAngle={2}
                 >
                   {clientSegments.map((_, idx) => (
-                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                    <Cell
+                      key={idx}
+                      fill={CHART_COLORS[idx % CHART_COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
@@ -565,12 +755,16 @@ function ClientSegmentChart() {
             {clientSegments.map((seg, idx) => (
               <div key={seg.segment} className="flex items-center gap-2">
                 <div
-                  className="size-3 rounded-sm shrink-0"
-                  style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                  className="size-3 shrink-0 rounded-sm"
+                  style={{
+                    backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
+                  }}
                 />
-                <div className="flex-1 flex items-center justify-between text-xs">
+                <div className="flex flex-1 items-center justify-between text-xs">
                   <span>{seg.segment}</span>
-                  <span className="text-muted-foreground">{seg.count} чел.</span>
+                  <span className="text-muted-foreground">
+                    {seg.count} чел.
+                  </span>
                 </div>
               </div>
             ))}
@@ -578,10 +772,19 @@ function ClientSegmentChart() {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           {clientSegments.map((seg) => (
-            <div key={seg.segment} className="rounded-lg border border-border/50 p-2">
-              <div className="text-[10px] text-muted-foreground">{seg.segment}</div>
-              <div className="text-sm font-bold">{formatCurrency(seg.revenue)}</div>
-              <div className="text-[10px] text-muted-foreground">Ср. визитов: {seg.avgVisits}</div>
+            <div
+              key={seg.segment}
+              className="border-border/50 rounded-lg border p-2"
+            >
+              <div className="text-muted-foreground text-[10px]">
+                {seg.segment}
+              </div>
+              <div className="text-sm font-bold">
+                {formatCompactCurrency(seg.revenue)}
+              </div>
+              <div className="text-muted-foreground text-[10px]">
+                Ср. визитов: {seg.avgVisits}
+              </div>
             </div>
           ))}
         </div>
@@ -601,7 +804,7 @@ function ExportPanel() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Download className="size-4 text-primary" />
+          <Download className="text-primary size-4" />
           <CardTitle>Экспорт отчётов</CardTitle>
         </div>
         <CardDescription>Скачать аналитический отчёт</CardDescription>
@@ -626,7 +829,9 @@ function ExportPanel() {
         <Button
           variant="outline"
           className="w-full justify-start gap-2"
-          onClick={() => exportAnalyticsPdf(revenue, services, metrics, health, insights)}
+          onClick={() =>
+            exportAnalyticsPdf(revenue, services, metrics, health, insights)
+          }
         >
           <Download className="size-4" />
           Печать / PDF
@@ -673,21 +878,39 @@ function MetricsCards() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((m, i) => (
-        <Card key={i} className="animate-fade-in" style={{ animationDelay: `${i * 80}ms` }}>
+        <Card
+          key={i}
+          className="animate-fade-in"
+          style={{ animationDelay: `${i * 80}ms` }}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                <m.icon className="size-5 text-primary" />
+              <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
+                <m.icon className="text-primary size-5" />
               </div>
-              <div className={cn("flex items-center gap-1 text-xs", m.change >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
-                {m.change >= 0 ? <ArrowUpRight className="size-3" /> : <TrendingDown className="size-3" />}
-                {m.change >= 0 ? "+" : ""}{m.change}%
+              <div
+                className={cn(
+                  "flex items-center gap-1 text-xs",
+                  m.change >= 0
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400",
+                )}
+              >
+                {m.change >= 0 ? (
+                  <ArrowUpRight className="size-3" />
+                ) : (
+                  <TrendingDown className="size-3" />
+                )}
+                {m.change >= 0 ? "+" : ""}
+                {m.change}%
               </div>
             </div>
             <div className="mt-3">
               <div className="text-2xl font-bold">{m.value}</div>
               <div className="text-xs font-medium">{m.label}</div>
-              <div className="text-[10px] text-muted-foreground">{m.description}</div>
+              <div className="text-muted-foreground text-[10px]">
+                {m.description}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -725,20 +948,43 @@ function RevenueChart({ dateRange }: { dateRange: DateRange }) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
               <defs>
-                <linearGradient id="revenueLineGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
+                <linearGradient
+                  id="revenueLineGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="5%"
+                    stopColor="var(--chart-1)"
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--chart-1)"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="month" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
+              <XAxis
+                dataKey="month"
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+              />
               <YAxis
                 yAxisId="left"
                 fontSize={11}
                 tick={{ fill: "var(--muted-foreground)" }}
-                tickFormatter={(v) => formatCurrency(v)}
+                tickFormatter={(v) => formatCompactCurrency(v)}
               />
-              <YAxis yAxisId="right" orientation="right" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                fontSize={11}
+                tick={{ fill: "var(--muted-foreground)" }}
+              />
               <Tooltip
                 contentStyle={{
                   backdropFilter: "blur(8px)",
@@ -748,13 +994,21 @@ function RevenueChart({ dateRange }: { dateRange: DateRange }) {
                   fontSize: "12px",
                 }}
                 formatter={(value, name) => {
-                  if (name === "revenue") return [formatCurrency(Number(value)), "Доход"];
-                  return [value, name === "appointments" ? "Записи" : "Новые клиенты"];
+                  if (name === "revenue")
+                    return [formatCompactCurrency(Number(value)), "Доход"];
+                  return [
+                    value,
+                    name === "appointments" ? "Записи" : "Новые клиенты",
+                  ];
                 }}
               />
               <Legend
                 formatter={(value) =>
-                  value === "revenue" ? "Доход" : value === "appointments" ? "Записи" : "Новые клиенты"
+                  value === "revenue"
+                    ? "Доход"
+                    : value === "appointments"
+                      ? "Записи"
+                      : "Новые клиенты"
                 }
                 fontSize={11}
               />
@@ -803,24 +1057,40 @@ export default function AnalyticsPage() {
     { value: "year", label: "Год" },
   ];
 
-  const serviceCategories = ["all", "Инъекции", "Пилинги", "Филлеры", "Уход", "Лазер"];
+  const serviceCategories = [
+    "all",
+    "Инъекции",
+    "Пилинги",
+    "Филлеры",
+    "Уход",
+    "Лазер",
+  ];
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Аналитика</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Полный анализ бизнеса с AI-инсайтами
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
             <Filter className="size-4" />
             Фильтры
-            <ChevronDown className={cn("size-3 transition-transform", showFilters && "rotate-180")} />
+            <ChevronDown
+              className={cn(
+                "size-3 transition-transform",
+                showFilters && "rotate-180",
+              )}
+            />
           </Button>
-          <div className="flex rounded-lg border border-border">
+          <div className="border-border flex rounded-lg border">
             {rangeOptions.map((opt) => (
               <button
                 key={opt.value}
@@ -840,10 +1110,12 @@ export default function AnalyticsPage() {
       </div>
 
       {showFilters && (
-        <div className="mb-4 animate-fade-in rounded-xl border border-border/50 bg-card p-4">
+        <div className="animate-fade-in border-border/50 bg-card mb-4 rounded-xl border p-4">
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Период</label>
+              <label className="text-muted-foreground text-xs font-medium">
+                Период
+              </label>
               <div className="mt-1 flex gap-1">
                 {rangeOptions.map((opt) => (
                   <Button
@@ -858,7 +1130,9 @@ export default function AnalyticsPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Категория услуг</label>
+              <label className="text-muted-foreground text-xs font-medium">
+                Категория услуг
+              </label>
               <div className="mt-1 flex flex-wrap gap-1">
                 {serviceCategories.map((cat) => (
                   <Button

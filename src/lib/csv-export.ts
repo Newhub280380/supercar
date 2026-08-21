@@ -1,39 +1,30 @@
-function escapeCsv(value: string | number | null | undefined): string {
-  if (value == null) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
+import { buildCsv, downloadCsv, type CsvValue } from "./csv";
 
-export function exportToCsv<T extends Record<string, string | number | null | undefined>>(
+type CsvRecord = Record<string, CsvValue>;
+
+export function exportToCsv<T extends CsvRecord>(
   data: T[],
   filename: string,
 ): void {
   if (data.length === 0) return;
 
   const headers = Object.keys(data[0]);
-  const rows = data.map((row) => headers.map((h) => escapeCsv(row[h])));
-  const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  const rows = data.map((row) => headers.map((h) => row[h]));
 
-  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(buildCsv([headers, ...rows]), filename);
 }
 
-export function exportAppointmentsCsv(data: Array<Record<string, string | number | null | undefined>>, filename = "appointments") {
+export function exportAppointmentsCsv(
+  data: CsvRecord[],
+  filename = "appointments",
+) {
   exportToCsv(data, filename);
 }
 
-export function exportClientsCsv(data: Array<Record<string, string | number | null | undefined>>, filename = "clients") {
+export function exportClientsCsv(data: CsvRecord[], filename = "clients") {
   exportToCsv(data, filename);
 }
 
-export function exportServicesCsv(data: Array<Record<string, string | number | null | undefined>>, filename = "services") {
+export function exportServicesCsv(data: CsvRecord[], filename = "services") {
   exportToCsv(data, filename);
 }

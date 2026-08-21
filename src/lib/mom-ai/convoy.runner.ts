@@ -1,50 +1,52 @@
-import { CONVOY_STEPS } from "./convoy.config";
+import {
+  CONVOY_STEPS,
+  type ConvoyResult,
+  type ConvoyRunSummary,
+} from "./convoy.config";
+import { generateGermanPosts } from "./german-posts";
 import { generateMomImages } from "./image-generator";
-import { generateLandingContent } from "./landing-generator";
+import {
+  generateLandingContent,
+  type LandingContent,
+} from "./landing-generator";
 
-export async function runConvoy(): Promise<{
-  summary: {
-    project: string;
-    startedAt: string;
-    finishedAt: string;
-    steps: Array<{
-      stepId: string;
-      success: boolean;
-      output?: unknown;
-      error?: string;
-      durationMs: number;
-    }>;
-    posts: string[];
-    images: string[];
-    landing: { title: string; sections: string[] };
-  };
-}> {
+export async function runConvoy(): Promise<{ summary: ConvoyRunSummary }> {
   const startedAt = new Date().toISOString();
-  const results: Array<{
-    stepId: string;
-    success: boolean;
-    output?: unknown;
-    error?: string;
-    durationMs: number;
-  }> = [];
+  const results: ConvoyResult[] = [];
 
   let posts: string[] = [];
   let images: string[] = [];
-  let landing: { title: string; sections: string[] } = { title: "", sections: [] };
+  let landing: LandingContent | null = null;
 
   for (const step of CONVOY_STEPS) {
     const t0 = Date.now();
+
+    const unmetDependencies = (step.dependsOn ?? []).filter(
+      (id) => !results.some((r) => r.stepId === id && r.success),
+    );
+    if (unmetDependencies.length > 0) {
+      const error = `Skipped: dependencies failed (${unmetDependencies.join(", ")})`;
+      console.error(`Convoy step "${step.id}" skipped:`, error);
+      results.push({ stepId: step.id, success: false, error, durationMs: 0 });
+      continue;
+    }
+
     try {
       let output: unknown;
       if (step.id === "generate_posts") {
-        output = (await import("@/lib/mom-ai/convoy.config")).CONVOY_STEPS[0].run();
-        posts = [];
+        posts = generateGermanPosts().map((p) => p.title);
+        output = posts;
       } else if (step.id === "generate_images") {
-        output = await generateMomImages(posts.map((title) => ({ title })));
-        images = output as string[];
+        images = await generateMomImages(posts.map((title) => ({ title })));
+        output = images;
       } else if (step.id === "generate_landing") {
-        output = await generateLandingContent(posts.map((title) => ({ title, body: "" })), images);
-        landing = output as { title: string; sections: string[] };
+        landing = await generateLandingContent(
+          posts.map((title) => ({ title, body: "" })),
+          images,
+        );
+        output = landing;
+      } else {
+        throw new Error(`Unknown convoy step: ${step.id}`);
       }
       results.push({
         stepId: step.id,
@@ -53,6 +55,7 @@ export async function runConvoy(): Promise<{
         durationMs: Date.now() - t0,
       });
     } catch (err) {
+      console.error(`Convoy step "${step.id}" failed:`, err);
       results.push({
         stepId: step.id,
         success: false,
@@ -65,6 +68,7 @@ export async function runConvoy(): Promise<{
   return {
     summary: {
       project: "Mom AI Assistant",
+      success: results.every((r) => r.success),
       startedAt,
       finishedAt: new Date().toISOString(),
       steps: results,

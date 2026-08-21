@@ -1,20 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { smsCampaignsData } from "@/lib/promotion-mock-data";
+import { parseJsonBody } from "@/lib/api-utils";
+import { newDraftCampaign } from "@/lib/campaigns";
+import { withRole } from "@/lib/api/handlers";
+import { MANAGER_ROLES } from "@/lib/auth";
 
-export async function GET(_request: NextRequest) {
-  return NextResponse.json({ campaigns: smsCampaignsData });
-}
+export const GET = withRole(
+  "List SMS campaigns error",
+  MANAGER_ROLES,
+  async () => NextResponse.json({ campaigns: smsCampaignsData }),
+);
 
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const newCampaign = {
-    id: `sms-${Date.now()}`,
-    ...body,
-    status: "draft",
-    recipientCount: body.recipientCount || 0,
-    sentAt: null,
-    metrics: null,
-    createdAt: new Date().toISOString().split("T")[0],
-  };
-  return NextResponse.json({ campaign: newCampaign }, { status: 201 });
-}
+export const POST = withRole(
+  "Create SMS campaign error",
+  MANAGER_ROLES,
+  async (_session, request: NextRequest) => {
+    const { data: body, error } = await parseJsonBody(request);
+    if (error) return error;
+
+    return NextResponse.json(
+      { campaign: newDraftCampaign("sms", body) },
+      { status: 201 },
+    );
+  },
+);

@@ -1,4 +1,9 @@
-import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import {
+  SignJWT,
+  jwtVerify,
+  errors as joseErrors,
+  type JWTPayload,
+} from "jose";
 import { JWT_EXPIRES_IN, AUTH_COOKIE_NAME } from "./constants";
 import type { Role } from "@/types";
 
@@ -37,8 +42,9 @@ export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret());
     return payload as TokenPayload;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof joseErrors.JOSEError) return null;
+    throw error;
   }
 }
 

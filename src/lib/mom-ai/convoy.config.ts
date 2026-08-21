@@ -1,3 +1,5 @@
+import type { LandingContent } from "./landing-generator";
+
 export interface ConvoyStep {
   id: string;
   name: string;
@@ -15,12 +17,13 @@ export interface ConvoyResult {
 
 export interface ConvoyRunSummary {
   project: string;
+  success: boolean;
   startedAt: string;
   finishedAt: string;
   steps: ConvoyResult[];
   posts: string[];
   images: string[];
-  landing: { title: string; sections: string[] };
+  landing: LandingContent | null;
 }
 
 export const CONVOY_STEPS: ConvoyStep[] = [
@@ -51,9 +54,19 @@ async function generatePostsStep(): Promise<ConvoyResult> {
   try {
     const { generateGermanPosts } = await import("@/lib/mom-ai/german-posts");
     postsCache = generateGermanPosts().map((p) => p.title);
-    return { stepId: "generate_posts", success: true, output: postsCache, durationMs: Date.now() - t0 };
+    return {
+      stepId: "generate_posts",
+      success: true,
+      output: postsCache,
+      durationMs: Date.now() - t0,
+    };
   } catch (err) {
-    return { stepId: "generate_posts", success: false, error: err instanceof Error ? err.message : "Unknown error", durationMs: Date.now() - t0 };
+    return {
+      stepId: "generate_posts",
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+      durationMs: Date.now() - t0,
+    };
   }
 }
 
@@ -62,21 +75,45 @@ async function generateImagesStep(): Promise<ConvoyResult> {
   try {
     const { generateMomImages } = await import("@/lib/mom-ai/image-generator");
     imagesCache = await generateMomImages([]);
-    return { stepId: "generate_images", success: true, output: imagesCache, durationMs: Date.now() - t0 };
+    return {
+      stepId: "generate_images",
+      success: true,
+      output: imagesCache,
+      durationMs: Date.now() - t0,
+    };
   } catch (err) {
-    return { stepId: "generate_images", success: false, error: err instanceof Error ? err.message : "Unknown error", durationMs: Date.now() - t0 };
+    return {
+      stepId: "generate_images",
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+      durationMs: Date.now() - t0,
+    };
   }
 }
 
 async function generateLandingStep(): Promise<ConvoyResult> {
   const t0 = Date.now();
   try {
-    const { generateLandingContent } = await import("@/lib/mom-ai/landing-generator");
+    const { generateLandingContent } =
+      await import("@/lib/mom-ai/landing-generator");
     const posts = postsCache ?? [];
     const images = imagesCache ?? [];
-    const output = await generateLandingContent(posts.map((t) => ({ title: t, body: "" })), images);
-    return { stepId: "generate_landing", success: true, output, durationMs: Date.now() - t0 };
+    const output = await generateLandingContent(
+      posts.map((t) => ({ title: t, body: "" })),
+      images,
+    );
+    return {
+      stepId: "generate_landing",
+      success: true,
+      output,
+      durationMs: Date.now() - t0,
+    };
   } catch (err) {
-    return { stepId: "generate_landing", success: false, error: err instanceof Error ? err.message : "Unknown error", durationMs: Date.now() - t0 };
+    return {
+      stepId: "generate_landing",
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+      durationMs: Date.now() - t0,
+    };
   }
 }

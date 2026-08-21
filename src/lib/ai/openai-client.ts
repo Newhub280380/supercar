@@ -30,6 +30,10 @@ export function getOpenAIClient(): OpenAI {
   return client;
 }
 
+export function resetOpenAIClient(): void {
+  client = null;
+}
+
 export interface ChatCompletionParams {
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
   model?: string;
@@ -45,7 +49,10 @@ export async function createChatCompletion(
   const model = params.model || getModel();
   const log = logger.scope("openai");
 
-  log.debug("chat completion request", { model, messageCount: params.messages.length });
+  log.debug("chat completion request", {
+    model,
+    messageCount: params.messages.length,
+  });
 
   try {
     const completion = await openai.chat.completions.create(
@@ -75,12 +82,19 @@ export async function createChatCompletion(
 export async function streamChatCompletion(
   params: ChatCompletionParams,
   onToken: (token: string) => void,
-): Promise<{ content: string; finishReason: string | null; usage: OpenAI.Chat.Completions.ChatCompletion["usage"] | null }> {
+): Promise<{
+  content: string;
+  finishReason: string | null;
+  usage: OpenAI.Chat.Completions.ChatCompletion["usage"] | null;
+}> {
   const openai = getOpenAIClient();
   const model = params.model || getModel();
   const log = logger.scope("openai");
 
-  log.debug("streaming chat completion request", { model, messageCount: params.messages.length });
+  log.debug("streaming chat completion request", {
+    model,
+    messageCount: params.messages.length,
+  });
 
   let content = "";
   let finishReason: string | null = null;
