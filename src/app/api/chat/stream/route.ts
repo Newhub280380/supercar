@@ -9,6 +9,7 @@ import {
   type ChatMessage,
 } from "@/lib/ai";
 import { logger } from "@/lib/logger";
+import { requireSession } from "@/lib/auth";
 import type { SkinType } from "@/types";
 
 export const runtime = "nodejs";
@@ -38,10 +39,9 @@ function sseEncode(event: SSEEvent): string {
 export async function POST(request: NextRequest) {
   const log = logger.scope("api:chat:stream");
 
-  const userId = request.headers.get("x-user-id");
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { session, response } = await requireSession();
+  if (response) return response;
+  const userId = session.sub;
 
   if (!checkRateLimit(userId)) {
     return NextResponse.json(
@@ -64,7 +64,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
   }
 
-  const { conversationId, message, tone = "professional", skinType, concerns } = body;
+  const {
+    conversationId,
+    message,
+    tone = "professional",
+    skinType,
+    concerns,
+  } = body;
 
   if (!message || !message.trim()) {
     return NextResponse.json(
@@ -109,7 +115,11 @@ export async function POST(request: NextRequest) {
               userId,
               topic,
               messages: [
-                { role: "user", content: message, timestamp: new Date().toISOString() },
+                {
+                  role: "user",
+                  content: message,
+                  timestamp: new Date().toISOString(),
+                },
               ],
             })
             .returning();
@@ -129,7 +139,11 @@ export async function POST(request: NextRequest) {
 
           const updatedMessages = [
             ...(existing.messages ?? []),
-            { role: "user", content: message, timestamp: new Date().toISOString() },
+            {
+              role: "user",
+              content: message,
+              timestamp: new Date().toISOString(),
+            },
           ];
           await db
             .update(aiConversations)
@@ -143,10 +157,12 @@ export async function POST(request: NextRequest) {
           .where(eq(aiConversations.id, activeConversationId))
           .limit(1);
 
-        const prevMessages: ChatMessage[] = (history?.messages ?? []).map((m) => ({
-          role: m.role as "user" | "assistant" | "system",
-          content: typeof m.content === "string" ? m.content : "",
-        }));
+        const prevMessages: ChatMessage[] = (history?.messages ?? []).map(
+          (m) => ({
+            role: m.role as "user" | "assistant" | "system",
+            content: typeof m.content === "string" ? m.content : "",
+          }),
+        );
 
         send({ type: "ready", conversationId: activeConversationId });
 
