@@ -5,38 +5,52 @@ import { eq } from "drizzle-orm";
 import { verifyPassword, signToken } from "@/lib/auth";
 import { setAuthCookie } from "@/lib/auth/cookies";
 import { toAuthUser } from "@/lib/auth/serialize";
-import { badRequest, unauthorized, withErrorHandling } from "@/lib/api/response";
+import { withRateLimit } from "@/lib/api/handlers";
+import { isNonEmptyString } from "@/lib/api/request";
+import {
+  badRequest,
+  unauthorized,
+  withErrorHandling,
+} from "@/lib/api/response";
 import crypto from "crypto";
 
-export const POST = withErrorHandling("Login error", async (request: NextRequest) => {
-  const body = await request.json();
-  const { email, password } = body;
+export const POST = withErrorHandling(
+  "Login error",
+  withRateLimit(
+    "login",
+    10,
+    async (request: NextRequest) => {
+      const body = await request.json();
+      const { email, password } = body;
 
-  if (!email || !password) {
-    return badRequest("Email and password are required");
-  }
+      if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
+        return badRequest("Email and password are required");
+      }
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.email, email.toLowerCase().trim()),
-  });
+      const user = await db.query.users.findFirst({
+        where: eq(users.email, email.toLowerCase().trim()),
+      });
 
-  if (!user) {
-    return unauthorized("Invalid email or password");
-  }
+      if (!user) {
+        return unauthorized("Invalid email or password");
+      }
 
-  const isValid = await verifyPassword(password, user.passwordHash);
-  if (!isValid) {
-    return unauthorized("Invalid email or password");
-  }
+      const isValid = await verifyPassword(password, user.passwordHash);
+      if (!isValid) {
+        return unauthorized("Invalid email or password");
+      }
 
-  const token = await signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    sessionId: crypto.randomUUID(),
-  });
+      const token = await signToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        sessionId: crypto.randomUUID(),
+      });
 
-  await setAuthCookie(token);
+      await setAuthCookie(token);
 
-  return NextResponse.json({ user: toAuthUser(user) });
-});
+      return NextResponse.json({ user: toAuthUser(user) });
+    },
+    "Too many login attempts. Please try again later.",
+  ),
+);

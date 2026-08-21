@@ -6,34 +6,42 @@ import { withUserId } from "@/lib/api/handlers";
 import { getSearchParam } from "@/lib/api/request";
 import { badRequest, notFound } from "@/lib/api/response";
 
-export const GET = withUserId("Error fetching conversations", async (userId) => {
-  const conversations = await db
-    .select()
-    .from(aiConversations)
-    .where(eq(aiConversations.userId, userId))
-    .orderBy(desc(aiConversations.updatedAt));
+export const GET = withUserId(
+  "Error fetching conversations",
+  async (userId) => {
+    const conversations = await db
+      .select()
+      .from(aiConversations)
+      .where(eq(aiConversations.userId, userId))
+      .orderBy(desc(aiConversations.updatedAt));
 
-  return NextResponse.json({ conversations });
-});
+    return NextResponse.json({ conversations });
+  },
+);
 
-export const DELETE = withUserId("Error deleting conversation", async (userId, request) => {
-  const conversationId = getSearchParam(request, "id");
+export const DELETE = withUserId(
+  "Error deleting conversation",
+  async (userId, request) => {
+    const conversationId = getSearchParam(request, "id");
 
-  if (!conversationId) {
-    return badRequest("Conversation ID required");
-  }
+    if (!conversationId) {
+      return badRequest("Conversation ID required");
+    }
 
-  const [conv] = await db
-    .select()
-    .from(aiConversations)
-    .where(eq(aiConversations.id, conversationId))
-    .limit(1);
+    const [conv] = await db
+      .select()
+      .from(aiConversations)
+      .where(eq(aiConversations.id, conversationId))
+      .limit(1);
 
-  if (!conv || conv.userId !== userId) {
-    return notFound();
-  }
+    if (!conv || conv.userId !== userId) {
+      return notFound();
+    }
 
-  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
+    await db
+      .delete(aiConversations)
+      .where(eq(aiConversations.id, conversationId));
 
-  return NextResponse.json({ success: true });
-});
+    return NextResponse.json({ success: true });
+  },
+);

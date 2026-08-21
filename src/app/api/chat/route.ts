@@ -9,7 +9,11 @@ import {
 } from "@/lib/ai";
 import { withUserId } from "@/lib/api/handlers";
 import { badRequest, notFound, tooManyRequests } from "@/lib/api/response";
-import { appendMessage, getConversation, getOwnedConversation } from "@/lib/conversations";
+import {
+  appendMessage,
+  getConversation,
+  getOwnedConversation,
+} from "@/lib/conversations";
 import type { SkinType } from "@/types";
 
 export const POST = withUserId(
@@ -20,7 +24,13 @@ export const POST = withUserId(
     }
 
     const body = await request.json();
-    const { conversationId, message, tone = "professional", skinType, concerns } = body as {
+    const {
+      conversationId,
+      message,
+      tone = "professional",
+      skinType,
+      concerns,
+    } = body as {
       conversationId?: string;
       message?: string;
       tone?: "professional" | "friendly";
@@ -45,7 +55,13 @@ export const POST = withUserId(
         .values({
           userId,
           topic: message.slice(0, 60),
-          messages: [{ role: "user", content: message, timestamp: new Date().toISOString() }],
+          messages: [
+            {
+              role: "user",
+              content: message,
+              timestamp: new Date().toISOString(),
+            },
+          ],
         })
         .returning();
       activeConversationId = newConv.id;
@@ -74,7 +90,10 @@ export const POST = withUserId(
 
     const finalHistory = await getConversation(activeConversationId);
     if (finalHistory) {
-      await appendMessage(finalHistory, { role: "assistant", content: aiResult.message });
+      await appendMessage(finalHistory, {
+        role: "assistant",
+        content: aiResult.message,
+      });
     }
 
     return NextResponse.json({

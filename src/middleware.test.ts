@@ -31,8 +31,14 @@ async function makeToken(
     .sign(new TextEncoder().encode(secret));
 }
 
-function makeRequest(pathname: string, token?: string): NextRequest {
-  const request = new NextRequest(`https://example.com${pathname}`);
+function makeRequest(
+  pathname: string,
+  token?: string,
+  headers?: Record<string, string>,
+): NextRequest {
+  const request = new NextRequest(`https://example.com${pathname}`, {
+    headers,
+  });
   if (token !== undefined) {
     request.cookies.set("auth_token", token);
   }
@@ -64,14 +70,14 @@ describe("middleware on protected pages", () => {
     );
   });
 
-  it("forwards the user id and role for an authorized role", async () => {
+  it("lets an authorized role through without emitting identity headers", async () => {
     const response = await middleware(
       makeRequest("/dashboard", await makeToken("cosmetologist")),
     );
 
     expect(response.headers.get("location")).toBeNull();
-    expect(response.headers.get("x-user-id")).toBe("user-1");
-    expect(response.headers.get("x-user-role")).toBe("cosmetologist");
+    expect(response.headers.get("x-user-id")).toBeNull();
+    expect(response.headers.get("x-user-role")).toBeNull();
   });
 
   it("redirects to the home page when the role may not access the dashboard", async () => {
@@ -85,7 +91,8 @@ describe("middleware on protected pages", () => {
     const response = await middleware(
       makeRequest("/chat", await makeToken("client")),
     );
-    expect(response.headers.get("x-user-role")).toBe("client");
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.status).toBe(200);
   });
 });
 
@@ -125,14 +132,22 @@ describe("middleware on api routes", () => {
     expect(response.status).toBe(401);
   });
 
-  it("forwards identity headers for protected api routes with a valid token", async () => {
+  it("allows protected api routes with a valid token and drops client identity headers", async () => {
     const response = await middleware(
-      makeRequest("/api/export-pdf", await makeToken("admin", "user-9")),
+      makeRequest("/api/export-pdf", await makeToken("admin", "user-9"), {
+        "x-user-id": "attacker",
+        "x-user-role": "admin",
+      }),
     );
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("x-user-id")).toBe("user-9");
-    expect(response.headers.get("x-user-role")).toBe("admin");
+    expect(response.headers.get("x-user-id")).toBeNull();
+    expect(response.headers.get("x-user-role")).toBeNull();
+    expect(
+      response.headers
+        .get("x-middleware-override-headers")
+        ?.includes("x-user-id"),
+    ).not.toBe(true);
   });
 
   it("guards the authenticated subset of /api/auth routes", async () => {

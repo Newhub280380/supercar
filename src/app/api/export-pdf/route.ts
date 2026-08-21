@@ -110,17 +110,22 @@ export const POST = withUserId("Export PDF error", async (userId, request) => {
     <div class="meta">${escapeHtml(topic)} · ${escapeHtml(date)}</div>
   </div>
 
-  ${messages.map((m) => {
-    const isUser = m.role === "user";
-    const time = m.timestamp
-      ? new Date(m.timestamp).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" })
-      : "";
-    return `<div class="message ${isUser ? "user" : "assistant"}">
+  ${messages
+    .map((m) => {
+      const isUser = m.role === "user";
+      const time = m.timestamp
+        ? new Date(m.timestamp).toLocaleTimeString(LOCALE, {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "";
+      return `<div class="message ${isUser ? "user" : "assistant"}">
       <div class="role">${isUser ? "Вы" : "AI-консультант"}</div>
       <div class="content">${escapeHtml(m.content)}</div>
       ${time ? `<div class="time">${time}</div>` : ""}
     </div>`;
-  }).join("")}
+    })
+    .join("")}
 
   <div class="disclaimer">
     <strong>Важно:</strong> Данные рекомендации носят информационный характер и не заменяют консультацию специалиста. Для индивидуального подбора процедур обратитесь к сертифицированному косметологу.

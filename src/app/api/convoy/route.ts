@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runConvoy } from "@/lib/mom-ai/convoy.runner";
 import { parseJsonBody } from "@/lib/api-utils";
 import { withErrorHandling } from "@/lib/api/response";
+import { MANAGER_ROLES, requireRole } from "@/lib/auth";
 
 export const POST = withErrorHandling(
   "Convoy error",
@@ -16,14 +17,21 @@ export const POST = withErrorHandling(
     }
 
     if (step === "images") {
-      const { generateMomImages } = await import("@/lib/mom-ai/image-generator");
+      const { generateMomImages } =
+        await import("@/lib/mom-ai/image-generator");
       return NextResponse.json({ images: await generateMomImages([]) });
     }
 
     if (step === "landing") {
-      const { generateLandingContent } = await import("@/lib/mom-ai/landing-generator");
-      return NextResponse.json({ landing: await generateLandingContent([], []) });
+      const { generateLandingContent } =
+        await import("@/lib/mom-ai/landing-generator");
+      return NextResponse.json({
+        landing: await generateLandingContent([], []),
+      });
     }
+
+    const { response } = await requireRole(MANAGER_ROLES);
+    if (response) return response;
 
     const result = await runConvoy();
     if (!result.summary.success) {
