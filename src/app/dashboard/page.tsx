@@ -45,8 +45,10 @@ const METRIC_ICONS: Record<string, React.ElementType> = {
 };
 
 const STATUS_COLORS: Record<AppointmentStatus, string> = {
-  pending: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  confirmed: "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300",
+  pending:
+    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  confirmed:
+    "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300",
   completed: "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
 };
@@ -71,12 +73,12 @@ export default function DashboardPage() {
 
   const handleExport = () => {
     const exportData = todayAppointments.map((a) => ({
-      "Клиент": a.clientName,
-      "Услуга": a.service,
-      "Время": `${a.time} - ${a.endTime}`,
-      "Статус": APPOINTMENT_STATUS_LABELS[a.status],
-      "Стоимость": a.servicePrice,
-      "Заметки": a.notes || "",
+      Клиент: a.clientName,
+      Услуга: a.service,
+      Время: `${a.time} - ${a.endTime}`,
+      Статус: APPOINTMENT_STATUS_LABELS[a.status],
+      Стоимость: a.servicePrice,
+      Заметки: a.notes || "",
     }));
     exportAppointmentsCsv(exportData, "appointments-today");
   };
@@ -86,7 +88,7 @@ export default function DashboardPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Добро пожаловать!</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {formatDate(new Date(), "weekdayLongYear")}
           </p>
         </div>
@@ -108,11 +110,15 @@ export default function DashboardPage() {
         {dashboardMetrics.map((metric, i) => {
           const Icon = METRIC_ICONS[metric.icon] || Calendar;
           return (
-            <Card key={i} className="animate-fade-in" style={{ animationDelay: `${i * 80}ms` }}>
+            <Card
+              key={i}
+              className="animate-fade-in"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                    <Icon className="size-5 text-primary" />
+                  <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
+                    <Icon className="text-primary size-5" />
                   </div>
                   <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                     <ArrowUpRight className="size-3" />
@@ -121,7 +127,9 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-3">
                   <div className="text-2xl font-bold">{metric.value}</div>
-                  <div className="text-xs text-muted-foreground">{metric.label}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {metric.label}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -140,18 +148,25 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end gap-3 h-40">
+            <div className="flex h-40 items-end gap-3">
               {weeklyChartData.map((d, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">{d.value}</span>
+                <div
+                  key={i}
+                  className="flex flex-1 flex-col items-center gap-1.5"
+                >
+                  <span className="text-muted-foreground text-xs">
+                    {d.value}
+                  </span>
                   <div
-                    className="w-full rounded-t-md bg-primary/80 transition-all duration-500 hover:bg-primary"
+                    className="bg-primary/80 hover:bg-primary w-full rounded-t-md transition-all duration-500"
                     style={{
                       height: `${(d.value / maxWeekly) * 100}%`,
                       minHeight: "8px",
                     }}
                   />
-                  <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                  <span className="text-muted-foreground text-[10px]">
+                    {d.label}
+                  </span>
                 </div>
               ))}
             </div>
@@ -169,7 +184,7 @@ export default function DashboardPage() {
               return (
                 <div
                   key={r.id}
-                  className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2.5"
+                  className="border-border/50 bg-muted/30 flex items-center gap-3 rounded-lg border p-2.5"
                 >
                   <div
                     className={cn(
@@ -184,12 +199,14 @@ export default function DashboardPage() {
                     <Icon className="size-4" />
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <div className="truncate text-sm font-medium">{r.clientName}</div>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <div className="truncate text-sm font-medium">
+                      {r.clientName}
+                    </div>
+                    <div className="text-muted-foreground truncate text-xs">
                       {r.service} {r.time && `· ${r.time}`}
                     </div>
                   </div>
-                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  <span className="text-muted-foreground text-[10px] whitespace-nowrap">
                     {formatDate(r.date, "dayMonth")}
                   </span>
                 </div>
@@ -205,7 +222,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Сегодняшние записи</CardTitle>
-                <CardDescription>{todayAppointments.length} записей запланировано</CardDescription>
+                <CardDescription>
+                  {todayAppointments.length} записей запланировано
+                </CardDescription>
               </div>
               <Link href="/dashboard/calendar">
                 <Button variant="ghost" size="sm">
@@ -220,10 +239,14 @@ export default function DashboardPage() {
               {todayAppointments.slice(0, 5).map((apt) => (
                 <div
                   key={apt.id}
-                  className="flex items-center gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-muted/30"
+                  className="border-border/50 hover:bg-muted/30 flex items-center gap-3 rounded-lg border p-3 transition-colors"
                 >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                    {apt.clientName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+                    {apt.clientName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)}
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <div className="flex items-center gap-2">
@@ -235,11 +258,13 @@ export default function DashboardPage() {
                         {APPOINTMENT_STATUS_LABELS[apt.status]}
                       </Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {apt.clientName} · {apt.time}–{apt.endTime}
                     </div>
                   </div>
-                  <span className="text-sm font-medium">₽{apt.servicePrice}</span>
+                  <span className="text-sm font-medium">
+                    ₽{apt.servicePrice}
+                  </span>
                 </div>
               ))}
             </div>
@@ -252,20 +277,25 @@ export default function DashboardPage() {
             <CardDescription>Динамика за полгода</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end gap-2 h-40">
+            <div className="flex h-40 items-end gap-2">
               {revenueChartData.map((d, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                  <span className="text-[10px] text-muted-foreground">
+                <div
+                  key={i}
+                  className="flex flex-1 flex-col items-center gap-1.5"
+                >
+                  <span className="text-muted-foreground text-[10px]">
                     {Math.round(d.value / 1000)}k
                   </span>
                   <div
-                    className="w-full rounded-t-md bg-chart-2/80 transition-all duration-500 hover:bg-chart-2"
+                    className="bg-chart-2/80 hover:bg-chart-2 w-full rounded-t-md transition-all duration-500"
                     style={{
                       height: `${(d.value / maxRevenue) * 100}%`,
                       minHeight: "8px",
                     }}
                   />
-                  <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                  <span className="text-muted-foreground text-[10px]">
+                    {d.label}
+                  </span>
                 </div>
               ))}
             </div>
@@ -279,50 +309,58 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Link
                 href="/dashboard/calendar"
-                className="flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all hover:bg-muted/30 hover:shadow-sm"
+                className="border-border/50 hover:bg-muted/30 flex items-center gap-3 rounded-xl border p-4 transition-all hover:shadow-sm"
               >
-                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                  <Calendar className="size-5 text-primary" />
+                <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
+                  <Calendar className="text-primary size-5" />
                 </div>
                 <div>
                   <div className="text-sm font-medium">Записаться</div>
-                  <div className="text-xs text-muted-foreground">Новая запись клиента</div>
+                  <div className="text-muted-foreground text-xs">
+                    Новая запись клиента
+                  </div>
                 </div>
               </Link>
               <Link
                 href="/dashboard/clients"
-                className="flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all hover:bg-muted/30 hover:shadow-sm"
+                className="border-border/50 hover:bg-muted/30 flex items-center gap-3 rounded-xl border p-4 transition-all hover:shadow-sm"
               >
-                <div className="flex size-10 items-center justify-center rounded-xl bg-sage/20">
-                  <UserPlus className="size-5 text-sage" />
+                <div className="bg-sage/20 flex size-10 items-center justify-center rounded-xl">
+                  <UserPlus className="text-sage size-5" />
                 </div>
                 <div>
                   <div className="text-sm font-medium">Добавить клиента</div>
-                  <div className="text-xs text-muted-foreground">Новый профиль</div>
+                  <div className="text-muted-foreground text-xs">
+                    Новый профиль
+                  </div>
                 </div>
               </Link>
               <Link
                 href="/dashboard/services"
-                className="flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all hover:bg-muted/30 hover:shadow-sm"
+                className="border-border/50 hover:bg-muted/30 flex items-center gap-3 rounded-xl border p-4 transition-all hover:shadow-sm"
               >
-                <div className="flex size-10 items-center justify-center rounded-xl bg-chart-2/20">
+                <div className="bg-chart-2/20 flex size-10 items-center justify-center rounded-xl">
                   <Sparkles className="size-5" />
                 </div>
                 <div>
                   <div className="text-sm font-medium">Услуги</div>
-                  <div className="text-xs text-muted-foreground">Управление прайсом</div>
+                  <div className="text-muted-foreground text-xs">
+                    Управление прайсом
+                  </div>
                 </div>
               </Link>
               <button
                 onClick={handleExport}
-                className="flex items-center gap-3 rounded-xl border border-border/50 p-4 transition-all hover:bg-muted/30 hover:shadow-sm text-left"
+                className="border-border/50 hover:bg-muted/30 flex items-center gap-3 rounded-xl border p-4 text-left transition-all hover:shadow-sm"
               >
-                <div className="flex size-10 items-center justify-center rounded-xl bg-chart-3/20">
+                <div className="bg-chart-3/20 flex size-10 items-center justify-center rounded-xl">
                   <FileDown className="size-5" />
                 </div>
                 <div>
                   <div className="text-sm font-medium">Экспорт</div>
-                  <div className="text-xs text-muted-foreground">CSV / Excel</div>
+                  <div className="text-muted-foreground text-xs">
+                    CSV / Excel
+                  </div>
                 </div>
               </button>
             </div>

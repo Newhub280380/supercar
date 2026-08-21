@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useChat } from "@/hooks/use-chat";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { ChatMessages } from "@/components/chat/chat-messages";
-import { ChatInput } from "@/components/chat/chat-input";
+import { ChatInput, type ChatInputHandle } from "@/components/chat/chat-input";
 import { ChatSettings } from "@/components/chat/chat-settings";
 import { FAQPanel } from "@/components/chat/faq-panel";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { cn } from "@/lib/utils";
 import {
   Bot,
@@ -25,8 +26,7 @@ export default function ChatPage() {
   const [rightPanel, setRightPanel] = useState<RightPanel>(null);
   const [mobileLeft, setMobileLeft] = useState(false);
   const [mobileRight, setMobileRight] = useState(false);
-  const relatedProcedures: string[] = [];
-  const relatedFAQ: string[] = [];
+  const inputRef = useRef<ChatInputHandle>(null);
 
   useEffect(() => {
     chat.fetchConversations();
@@ -40,21 +40,16 @@ export default function ChatPage() {
     [chat],
   );
 
-  const handleAskQuestion = useCallback(
-    (question: string) => {
-      const input = document.querySelector(
-        "[data-chat-input]",
-      ) as HTMLTextAreaElement | null;
-      if (input) {
-        input.value = question;
-        input.focus();
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-      setRightPanel(null);
-      setMobileRight(false);
-    },
-    [],
-  );
+  const handleStop = useCallback(() => {
+    chat.stopStreaming();
+  }, [chat]);
+
+  const handleAskQuestion = useCallback((question: string) => {
+    inputRef.current?.setValue(question);
+    inputRef.current?.focus();
+    setRightPanel(null);
+    setMobileRight(false);
+  }, []);
 
   const openRightPanel = useCallback((panel: RightPanel) => {
     setRightPanel((prev) => (prev === panel ? null : panel));
@@ -143,16 +138,25 @@ export default function ChatPage() {
         </aside>
 
         <main className="flex flex-1 flex-col overflow-hidden bg-background">
-          <ChatMessages
-            messages={chat.messages}
-            isLoading={chat.isLoading}
-            error={chat.error}
-            conversationId={chat.activeConversationId}
-            relatedProcedures={relatedProcedures}
-            relatedFAQ={relatedFAQ}
-            onClearError={chat.clearError}
+          <ErrorBoundary resetKey={chat.activeConversationId}>
+            <ChatMessages
+              messages={chat.messages}
+              isLoading={chat.isLoading}
+              error={chat.error}
+              conversationId={chat.activeConversationId}
+              relatedProcedures={chat.relatedProcedures}
+              relatedFAQ={chat.relatedFAQ}
+              onClearError={chat.clearError}
+              onSuggestionClick={handleAskQuestion}
+            />
+          </ErrorBoundary>
+          <ChatInput
+            ref={inputRef}
+            onSend={handleSend}
+            onStop={handleStop}
+            disabled={chat.isLoading}
+            isStreaming={chat.isStreaming}
           />
-          <ChatInput onSend={handleSend} disabled={chat.isLoading} />
         </main>
 
         {mobileRight && (

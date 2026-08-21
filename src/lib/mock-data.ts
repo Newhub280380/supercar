@@ -76,7 +76,12 @@ const addDays = (d: Date, n: number) => {
 export const dashboardMetrics: DashboardMetric[] = [
   { label: "Записей сегодня", value: "8", change: 12, icon: "calendar" },
   { label: "Новых клиентов", value: "3", change: 25, icon: "userPlus" },
-  { label: "Доход за месяц", value: "₽248,500", change: 8.5, icon: "trendingUp" },
+  {
+    label: "Доход за месяц",
+    value: "₽248,500",
+    change: 8.5,
+    icon: "trendingUp",
+  },
   { label: "Средний рейтинг", value: "4.9", change: 0.2, icon: "star" },
 ];
 
@@ -389,7 +394,8 @@ export const servicesData: ServiceItem[] = [
   {
     id: "srv-1",
     name: "Биоревитализация",
-    description: "Инъекционная процедура для глубокого увлажнения кожи гиалуроновой кислотой",
+    description:
+      "Инъекционная процедура для глубокого увлажнения кожи гиалуроновой кислотой",
     price: "12,000",
     duration: 60,
     category: "Инъекции",
@@ -400,7 +406,8 @@ export const servicesData: ServiceItem[] = [
   {
     id: "srv-2",
     name: "Химический пилинг",
-    description: "Профессиональный пилинг фруктовыми кислотами для обновления кожи",
+    description:
+      "Профессиональный пилинг фруктовыми кислотами для обновления кожи",
     price: "8,500",
     duration: 60,
     category: "Пилинги",

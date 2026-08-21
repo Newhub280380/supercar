@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type {
   ContentGenerationRequest,
   ContentGenerationResult,
@@ -49,6 +49,7 @@ const STORAGE_KEY = "content-generation-history";
 const SETTINGS_KEY = "content-generation-settings";
 
 function loadSavedItems(): ContentItem[] {
+  if (typeof window === "undefined") return [];
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
@@ -59,6 +60,7 @@ function loadSavedItems(): ContentItem[] {
 }
 
 function loadSettings(): ContentGenerationSettings {
+  if (typeof window === "undefined") return DEFAULT_SETTINGS;
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     return stored
@@ -84,8 +86,16 @@ export function useContentGenerator(): UseContentGeneratorReturn {
   const [result, setResult] = useState<ContentGenerationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState<ContentGenerationSettings>(loadSettings);
-  const [savedItems, setSavedItems] = useState<ContentItem[]>(loadSavedItems);
+  const [settings, setSettings] =
+    useState<ContentGenerationSettings>(DEFAULT_SETTINGS);
+  const [savedItems, setSavedItems] = useState<ContentItem[]>([]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setSettings(loadSettings());
+      setSavedItems(loadSavedItems());
+    });
+  }, []);
 
   const generate = useCallback(async () => {
     if (!settings.topic.trim()) {
@@ -105,7 +115,8 @@ export function useContentGenerator(): UseContentGeneratorReturn {
         tone: settings.tone,
         length: settings.length,
         service: settings.service || undefined,
-        seoKeywords: settings.seoKeywords.length > 0 ? settings.seoKeywords : undefined,
+        seoKeywords:
+          settings.seoKeywords.length > 0 ? settings.seoKeywords : undefined,
       };
 
       const response = await fetch("/api/content", {

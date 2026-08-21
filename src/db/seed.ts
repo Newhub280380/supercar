@@ -14,7 +14,7 @@ async function seed() {
 
   try {
     console.log("📝 Creating users...");
-    const adminUser = await db
+    const _adminUser = await db
       .insert(users)
       .values({
         email: "admin@cosmetology.com",
@@ -103,7 +103,7 @@ async function seed() {
       })
       .returning();
 
-    const service2 = await db
+    const _service2 = await db
       .insert(services)
       .values({
         cosmetologistId: cosmetologist1[0].id,
@@ -148,7 +148,7 @@ async function seed() {
       })
       .returning();
 
-    const service5 = await db
+    const _service5 = await db
       .insert(services)
       .values({
         cosmetologistId: cosmetologist2[0].id,
@@ -163,7 +163,7 @@ async function seed() {
       })
       .returning();
 
-    const service6 = await db
+    const _service6 = await db
       .insert(services)
       .values({
         cosmetologistId: cosmetologist2[0].id,

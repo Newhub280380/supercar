@@ -7,6 +7,7 @@ import {
   safetyFilter,
   type ChatMessage,
 } from "@/lib/ai";
+import { logger } from "@/lib/logger";
 import { withUserId } from "@/lib/api/handlers";
 import { badRequest, notFound, tooManyRequests } from "@/lib/api/response";
 import {
@@ -15,6 +16,11 @@ import {
   getOwnedConversation,
 } from "@/lib/conversations";
 import type { SkinType } from "@/types";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const log = logger.scope("api:chat");
 
 export const POST = withUserId(
   "Chat send message error",
@@ -76,7 +82,7 @@ export const POST = withUserId(
     const history = await getConversation(activeConversationId);
     const prevMessages: ChatMessage[] = (history?.messages ?? []).map((m) => ({
       role: m.role as "user" | "assistant" | "system",
-      content: m.content,
+      content: typeof m.content === "string" ? m.content : "",
     }));
 
     const aiResult = await generateAIResponse({
@@ -95,6 +101,11 @@ export const POST = withUserId(
         content: aiResult.message,
       });
     }
+
+    log.info("message handled", {
+      conversationId: activeConversationId,
+      usage: aiResult.usage,
+    });
 
     return NextResponse.json({
       conversationId: activeConversationId,

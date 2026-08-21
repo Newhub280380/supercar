@@ -9,7 +9,12 @@ interface MomSectionProps {
   id?: string;
 }
 
-export function MomSection({ children, className, delay = 0, id }: MomSectionProps) {
+export function MomSection({
+  children,
+  className,
+  delay = 0,
+  id,
+}: MomSectionProps) {
   return (
     <Reveal as="section" id={id} className={className} delay={delay}>
       {children}

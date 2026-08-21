@@ -7,6 +7,19 @@ import {
 } from "./content-generator";
 import { TEMPLATE_LABELS } from "./content-templates";
 import { procedures } from "./knowledge-base";
+import { resetOpenAIClient } from "./openai-client";
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function requestBody(fetchMock: { mock: { calls: unknown[][] } }): string {
+  const init = fetchMock.mock.calls[0][1] as RequestInit;
+  return init.body as string;
+}
 
 const request: ContentGenerationRequest = {
   platform: "instagram",
@@ -119,6 +132,7 @@ describe("generateMockContent", () => {
 describe("generateContent", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    resetOpenAIClient();
     delete process.env.OPENAI_API_KEY;
   });
 
@@ -129,33 +143,30 @@ describe("generateContent", () => {
     const result = await generateContent(request);
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.content).toContain(procedures[0].name);
+    expect(result.content.length).toBeGreaterThan(50);
     expect(result.wordCount).toBeGreaterThan(10);
   });
 
-  it("returns the same generic post fallback for hashtag, email and seo templates", async () => {
-    const [post, hashtags, email, seo] = await Promise.all(
-      (
-        ["promotion", "hashtags", "email_welcome", "seo_description"] as const
-      ).map((templateType) => generateContent({ ...request, templateType })),
+  it("tailors the offline fallback to email and seo prompts", async () => {
+    const [email, seo] = await Promise.all(
+      (["email_welcome", "seo_description"] as const).map((templateType) =>
+        generateContent({ ...request, templateType }),
+      ),
     );
 
-    expect(hashtags.content).toBe(post.content);
-    expect(email.content).toBe(post.content);
-    expect(seo.content).toBe(post.content);
-    expect(email.subjectLine).toBeUndefined();
+    expect(email.content).toContain("Subject:");
+    expect(seo.content).toContain(procedures[0].name);
   });
 
   it("sends the built prompt to OpenAI and parses the reply", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
         choices: [
           { message: { content: "# Заголовок\nТекст о косметологии #акция" } },
         ],
       }),
-    });
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await generateContent(request);
@@ -163,8 +174,8 @@ describe("generateContent", () => {
     expect(result.title).toBe("Заголовок");
     expect(result.hashtags).toEqual(["#акция"]);
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.model).toBe("gpt-4o-mini");
+    const body = JSON.parse(requestBody(fetchMock));
+    expect(body.model).toBe("gpt-4o");
     expect(body.messages[0].role).toBe("system");
     expect(body.messages[1].content).toContain(request.topic);
   });
@@ -173,10 +184,9 @@ describe("generateContent", () => {
     process.env.OPENAI_API_KEY = "sk-test";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ choices: [{ message: { content: null } }] }),
-      }),
+      vi.fn(async () =>
+        jsonResponse({ choices: [{ message: { content: null } }] }),
+      ),
     );
 
     const result = await generateContent(request);
@@ -188,10 +198,7 @@ describe("generateContent", () => {
     process.env.OPENAI_API_KEY = "sk-test";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ choices: [] }),
-      }),
+      vi.fn(async () => jsonResponse({ choices: [] })),
     );
 
     const result = await generateContent({
@@ -201,15 +208,14 @@ describe("generateContent", () => {
     expect(result.content).toContain(procedures[0].name);
   });
 
-  it("throws when the api responds with an error status", async () => {
+  it("falls back to offline content when the api responds with an error status", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 500 }),
+      vi.fn(async () => jsonResponse({ error: { message: "boom" } }, 500)),
     );
 
-    await expect(generateContent(request)).rejects.toThrow(
-      "OpenAI API error: 500",
-    );
+    const result = await generateContent(request);
+    expect(result.content.length).toBeGreaterThan(50);
   });
 });

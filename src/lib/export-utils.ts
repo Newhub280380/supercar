@@ -3,7 +3,11 @@ import { downloadText, withExtension } from "./download";
 export { copyToClipboard } from "./download";
 
 export function exportAsTXT(content: string, filename: string): void {
-  downloadText(content, withExtension(filename, "txt"), "text/plain;charset=utf-8");
+  downloadText(
+    content,
+    withExtension(filename, "txt"),
+    "text/plain;charset=utf-8",
+  );
 }
 
 export function exportAsHTML(content: string, filename: string): void {
@@ -14,7 +18,11 @@ export function exportAsHTML(content: string, filename: string): void {
 </head>
 <body>${markdownToHTML(content)}</body>
 </html>`;
-  downloadText(html, withExtension(filename, "html"), "text/html;charset=utf-8");
+  downloadText(
+    html,
+    withExtension(filename, "html"),
+    "text/html;charset=utf-8",
+  );
 }
 
 function markdownToHTML(md: string): string {

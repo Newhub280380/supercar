@@ -3,14 +3,25 @@
 import { useState, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormError, PasswordField, usePasswordVisibility } from "@/components/auth/form-fields";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  FormError,
+  PasswordField,
+  usePasswordVisibility,
+} from "@/components/auth/form-fields";
 import { Lock } from "lucide-react";
 
 function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const { visible: showPassword, toggle: togglePassword } = usePasswordVisibility();
+  const { visible: showPassword, toggle: togglePassword } =
+    usePasswordVisibility();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -21,8 +32,12 @@ function ResetPasswordForm() {
     return (
       <Card className="shadow-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-destructive font-heading">Invalid Link</CardTitle>
-          <CardDescription>This password reset link is invalid or has expired.</CardDescription>
+          <CardTitle className="text-destructive font-heading">
+            Invalid Link
+          </CardTitle>
+          <CardDescription>
+            This password reset link is invalid or has expired.
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -62,7 +77,7 @@ function ResetPasswordForm() {
   return (
     <Card className="shadow-lg">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-heading">Reset Password</CardTitle>
+        <CardTitle className="font-heading text-2xl">Reset Password</CardTitle>
         <CardDescription>Enter your new password</CardDescription>
       </CardHeader>
       <CardContent>
@@ -91,7 +106,7 @@ function ResetPasswordForm() {
             autoComplete="new-password"
             visible={showPassword}
           />
-          <Button type="submit" className="w-full h-10" disabled={loading}>
+          <Button type="submit" className="h-10 w-full" disabled={loading}>
             {loading ? "Resetting..." : "Reset Password"}
           </Button>
         </form>

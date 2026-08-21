@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Image, Send, Mail, MapPin, Phone } from "lucide-react";
+import { Image as ImageIcon, Send, Mail, MapPin, Phone } from "lucide-react";
 
 const footerLinks = {
   product: [
@@ -38,7 +38,7 @@ export function Footer() {
                 className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Instagram"
               >
-                <Image className="size-4" />
+                <ImageIcon className="size-4" />
               </a>
               <a
                 href="#"

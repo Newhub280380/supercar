@@ -11,10 +11,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  appointmentsData,
-  APPOINTMENT_STATUS_LABELS,
-} from "@/lib/mock-data";
+import { appointmentsData, APPOINTMENT_STATUS_LABELS } from "@/lib/mock-data";
 import type { AppointmentStatus } from "@/types";
 import { formatDate, toIsoDate } from "@/lib/format";
 
@@ -23,7 +20,10 @@ type ViewMode = "week" | "day" | "list";
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const HOURS = Array.from({ length: 12 }, (_, i) => 9 + i);
 
-const STATUS_COLORS: Record<AppointmentStatus, { bg: string; border: string; text: string; dot: string }> = {
+const STATUS_COLORS: Record<
+  AppointmentStatus,
+  { bg: string; border: string; text: string; dot: string }
+> = {
   pending: {
     bg: "bg-amber-50 dark:bg-amber-950/30",
     border: "border-amber-300 dark:border-amber-700",
@@ -79,15 +79,18 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "all">(
+    "all",
+  );
 
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
   const weekDays = useMemo(
-    () => WEEKDAYS.map((_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return d;
-    }),
+    () =>
+      WEEKDAYS.map((_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i);
+        return d;
+      }),
     [weekStart],
   );
 
@@ -96,7 +99,9 @@ export default function CalendarPage() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        (a) => a.clientName.toLowerCase().includes(q) || a.service.toLowerCase().includes(q),
+        (a) =>
+          a.clientName.toLowerCase().includes(q) ||
+          a.service.toLowerCase().includes(q),
       );
     }
     if (statusFilter !== "all") {
@@ -142,11 +147,11 @@ export default function CalendarPage() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Календарь записей</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {formatDate(currentDate, "monthYear")}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder="Поиск..."
             value={searchQuery}
@@ -155,8 +160,10 @@ export default function CalendarPage() {
           />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as AppointmentStatus | "all")}
-            className="h-8 rounded-lg border border-border bg-background px-2 text-sm"
+            onChange={(e) =>
+              setStatusFilter(e.target.value as AppointmentStatus | "all")
+            }
+            className="border-border bg-background h-8 rounded-lg border px-2 text-sm"
           >
             <option value="all">Все статусы</option>
             <option value="pending">Ожидает</option>
@@ -167,36 +174,38 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-2 flex-wrap">
-        <div className="flex items-center rounded-lg border border-border overflow-hidden">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="border-border flex items-center overflow-hidden rounded-lg border">
           <button
             onClick={handlePrev}
-            className="flex size-8 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center transition-colors"
           >
             <ChevronLeft className="size-4" />
           </button>
           <button
             onClick={handleToday}
-            className="border-x border-border px-3 text-xs font-medium hover:bg-muted transition-colors"
+            className="border-border hover:bg-muted border-x px-3 text-xs font-medium transition-colors"
           >
             Сегодня
           </button>
           <button
             onClick={handleNext}
-            className="flex size-8 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center transition-colors"
           >
             <ChevronRight className="size-4" />
           </button>
         </div>
 
-        <div className="flex items-center rounded-lg border border-border overflow-hidden">
+        <div className="border-border flex items-center overflow-hidden rounded-lg border">
           {(["day", "week", "list"] as ViewMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               className={cx(
                 "px-3 py-1.5 text-xs font-medium transition-colors",
-                viewMode === mode ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted",
               )}
             >
               {{ day: "День", week: "Неделя", list: "Список" }[mode]}
@@ -208,7 +217,7 @@ export default function CalendarPage() {
           {Object.entries(STATUS_COLORS).map(([status, colors]) => (
             <div key={status} className="flex items-center gap-1">
               <span className={cn("size-2 rounded-full", colors.dot)} />
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">
+              <span className="text-muted-foreground hidden text-[10px] sm:inline">
                 {STATUS_LABELS[status as AppointmentStatus]}
               </span>
             </div>
@@ -230,18 +239,20 @@ export default function CalendarPage() {
 
       {viewMode === "week" && (
         <div className="overflow-x-auto">
-          <div className="min-w-[720px] border border-border rounded-xl overflow-hidden">
-            <div className="grid grid-cols-[60px_repeat(7,1fr)] bg-muted/30 border-b border-border">
+          <div className="border-border min-w-[720px] overflow-hidden rounded-xl border">
+            <div className="bg-muted/30 border-border grid grid-cols-[60px_repeat(7,1fr)] border-b">
               <div className="p-2" />
               {weekDays.map((d, i) => (
                 <div
                   key={i}
                   className={cx(
-                    "flex flex-col items-center gap-0.5 p-2 border-l border-border/50",
+                    "border-border/50 flex flex-col items-center gap-0.5 border-l p-2",
                     toIsoDate(d) === toIsoDate() && "bg-primary/5",
                   )}
                 >
-                  <span className="text-[10px] font-medium text-muted-foreground">{WEEKDAYS[i]}</span>
+                  <span className="text-muted-foreground text-[10px] font-medium">
+                    {WEEKDAYS[i]}
+                  </span>
                   <span
                     className={cx(
                       "flex size-6 items-center justify-center rounded-full text-xs font-medium",
@@ -252,7 +263,7 @@ export default function CalendarPage() {
                   >
                     {d.getDate()}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-muted-foreground text-[10px]">
                     {dayCounts[i]} {dayCounts[i] === 1 ? "запись" : "записей"}
                   </span>
                 </div>
@@ -262,10 +273,10 @@ export default function CalendarPage() {
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border/30 last:border-b-0"
+                className="border-border/30 grid grid-cols-[60px_repeat(7,1fr)] border-b last:border-b-0"
               >
                 <div className="flex items-start p-2">
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-muted-foreground text-[10px]">
                     {String(hour).padStart(2, "0")}:00
                   </span>
                 </div>
@@ -274,7 +285,7 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={`${hour}-${d.getDate()}`}
-                      className="min-h-[2.5rem] border-l border-border/30 p-0.5 space-y-0.5"
+                      className="border-border/30 min-h-[2.5rem] space-y-0.5 border-l p-0.5"
                     >
                       {dayAppts.map((apt) => {
                         const colors = STATUS_COLORS[apt.status];
@@ -282,15 +293,25 @@ export default function CalendarPage() {
                           <div
                             key={apt.id}
                             className={cx(
-                              "rounded-md border px-1.5 py-0.5 cursor-pointer transition-opacity hover:opacity-80",
+                              "cursor-pointer rounded-md border px-1.5 py-0.5 transition-opacity hover:opacity-80",
                               colors.bg,
                               colors.border,
                             )}
                           >
-                            <div className={cx("text-[10px] font-medium truncate", colors.text)}>
+                            <div
+                              className={cx(
+                                "truncate text-[10px] font-medium",
+                                colors.text,
+                              )}
+                            >
                               {apt.time} {apt.clientName.split(" ")[0]}
                             </div>
-                            <div className={cx("text-[9px] truncate opacity-75", colors.text)}>
+                            <div
+                              className={cx(
+                                "truncate text-[9px] opacity-75",
+                                colors.text,
+                              )}
+                            >
                               {apt.service}
                             </div>
                           </div>
@@ -310,7 +331,9 @@ export default function CalendarPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>{formatDayLabel(currentDate)}</CardTitle>
-              <Badge variant="outline">{allAppointmentsForDay(currentDate).length} записей</Badge>
+              <Badge variant="outline">
+                {allAppointmentsForDay(currentDate).length} записей
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -329,16 +352,22 @@ function cx(...args: Array<string | false | undefined>) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="flex size-14 items-center justify-center rounded-full bg-muted">
-        <CalendarIcon className="size-6 text-muted-foreground" />
+      <div className="bg-muted flex size-14 items-center justify-center rounded-full">
+        <CalendarIcon className="text-muted-foreground size-6" />
       </div>
       <p className="mt-3 text-sm font-medium">Записи не найдены</p>
-      <p className="text-xs text-muted-foreground">Измените фильтры или создайте новую запись</p>
+      <p className="text-muted-foreground text-xs">
+        Измените фильтры или создайте новую запись
+      </p>
     </div>
   );
 }
 
-function AppointmentList({ appointments }: { appointments: typeof appointmentsData }) {
+function AppointmentList({
+  appointments,
+}: {
+  appointments: typeof appointmentsData;
+}) {
   const groupedByDate = appointments.reduce(
     (acc, apt) => {
       if (!acc[apt.date]) acc[apt.date] = [];
@@ -352,12 +381,14 @@ function AppointmentList({ appointments }: { appointments: typeof appointmentsDa
     <div className="space-y-4">
       {Object.entries(groupedByDate).map(([date, appts]) => (
         <div key={date}>
-          <div className="sticky top-0 z-10 flex items-center gap-2 bg-card py-2">
-            <CalendarIcon className="size-3.5 text-muted-foreground" />
+          <div className="bg-card sticky top-0 z-10 flex items-center gap-2 py-2">
+            <CalendarIcon className="text-muted-foreground size-3.5" />
             <span className="text-sm font-medium">
               {formatDate(date, "weekdayShort")}
             </span>
-            <Badge variant="secondary" className="text-[10px]">{appts.length}</Badge>
+            <Badge variant="secondary" className="text-[10px]">
+              {appts.length}
+            </Badge>
           </div>
           <div className="space-y-1.5">
             {appts
@@ -380,23 +411,41 @@ function AppointmentList({ appointments }: { appointments: typeof appointmentsDa
                         colors.text,
                       )}
                     >
-                      {apt.clientName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      {apt.clientName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)}
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{apt.service}</span>
-                        <Badge variant="outline" className={cn("text-[10px]", colors.text)}>
-                          <span className={cn("size-1.5 rounded-full mr-1", colors.dot)} />
+                        <span className="text-sm font-medium">
+                          {apt.service}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={cn("text-[10px]", colors.text)}
+                        >
+                          <span
+                            className={cn(
+                              "mr-1 size-1.5 rounded-full",
+                              colors.dot,
+                            )}
+                          />
                           {APPOINTMENT_STATUS_LABELS[apt.status]}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="text-muted-foreground flex items-center gap-1 text-xs">
                         <span>{apt.clientName}</span>
                         <span>·</span>
-                        <span>{apt.time}–{apt.endTime}</span>
+                        <span>
+                          {apt.time}–{apt.endTime}
+                        </span>
                       </div>
                     </div>
-                    <span className="text-sm font-medium whitespace-nowrap">₽{apt.servicePrice}</span>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      ₽{apt.servicePrice}
+                    </span>
                   </div>
                 );
               })}
@@ -423,9 +472,9 @@ function DayTimeline({ date }: { date: Date }) {
           return (
             <div
               key={hour}
-              className="flex gap-3 border-t border-border/30 py-1.5 first:border-t-0"
+              className="border-border/30 flex gap-3 border-t py-1.5 first:border-t-0"
             >
-              <span className="w-12 shrink-0 text-xs text-muted-foreground">
+              <span className="text-muted-foreground w-12 shrink-0 text-xs">
                 {String(hour).padStart(2, "0")}:00
               </span>
               <div className="flex flex-1 flex-col gap-1.5">
@@ -443,7 +492,9 @@ function DayTimeline({ date }: { date: Date }) {
                       <Clock className={cn("size-4 shrink-0", colors.text)} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={cn("text-sm font-medium", colors.text)}>
+                          <span
+                            className={cn("text-sm font-medium", colors.text)}
+                          >
                             {apt.service}
                           </span>
                           <span className={cn("text-[10px]", colors.text)}>

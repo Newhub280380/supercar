@@ -37,6 +37,10 @@ cp .env.example .env.local
 | `DATABASE_URL`      | PostgreSQL connection string         |
 | `NEXT_PUBLIC_APP_URL` | Application URL (default: http://localhost:3000) |
 | `OPENAI_API_KEY`    | OpenAI API key for AI features       |
+| `OPENAI_MODEL`      | OpenAI model id (default: `gpt-4o`)  |
+| `OPENAI_TIMEOUT_MS` | Per-request timeout in ms (default: `30000`) |
+| `LOG_LEVEL`         | Log level: `debug` \| `info` \| `warn` \| `error` (default: `info`) |
+| `JWT_SECRET`        | Secret used to sign auth JWTs        |
 
 ### Database Setup
 
@@ -74,6 +78,8 @@ src/
 | `npm run build`        | Build for production                 |
 | `npm run start`        | Start production server              |
 | `npm run lint`         | Run ESLint                           |
+| `npm run typecheck`    | Run TypeScript type-checker          |
+| `npm run test`         | Run unit tests (Node test runner)    |
 | `npm run format`       | Format code with Prettier            |
 | `npm run db:generate`  | Generate Drizzle migrations          |
 | `npm run db:migrate`   | Run Drizzle migrations               |

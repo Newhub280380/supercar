@@ -6,62 +6,69 @@ import type {
 } from "@/types";
 import { getTemplate } from "./content-templates";
 import { procedures } from "./knowledge-base";
-
-interface OpenAIChatResponse {
-  choices: { message: { content: string | null } }[];
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-}
+import { createChatCompletion, isAIEnabled } from "./openai-client";
+import { logger } from "@/lib/logger";
 
 const CONTENT_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_CONTENT_REQUESTS = 20;
+const CONTENT_RATE_LIMIT_MAX_USERS = 10_000;
 const contentRateLimitMap = new Map<string, number[]>();
 
 export function checkContentRateLimit(userId: string): boolean {
   const now = Date.now();
-  const requests = contentRateLimitMap.get(userId) ?? [];
-  const recent = requests.filter((t) => now - t < CONTENT_RATE_LIMIT_WINDOW_MS);
-  if (recent.length >= MAX_CONTENT_REQUESTS) return false;
-  recent.push(now);
-  contentRateLimitMap.set(userId, recent);
+  const requests = (contentRateLimitMap.get(userId) ?? []).filter(
+    (t) => now - t < CONTENT_RATE_LIMIT_WINDOW_MS,
+  );
+
+  if (contentRateLimitMap.size > CONTENT_RATE_LIMIT_MAX_USERS) {
+    contentRateLimitMap.clear();
+  }
+
+  if (requests.length >= MAX_CONTENT_REQUESTS) {
+    contentRateLimitMap.set(userId, requests);
+    return false;
+  }
+
+  requests.push(now);
+  contentRateLimitMap.set(userId, requests);
   return true;
 }
 
 async function callOpenAIForContent(
-  systemPrompt: string,
+  _systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const log = logger.scope("ai:content");
 
-  if (!apiKey) {
-    return buildFallbackContent(systemPrompt);
+  if (!isAIEnabled()) {
+    return buildFallbackContent(userPrompt);
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
+  try {
+    const completion = await createChatCompletion({
       messages: [
         {
           role: "system",
-          content: `Ты опытный SMM-менеджер и копирайтер для косметологической индустрии. Создаёшь качественный маркетинговый контент, который привлекает клиентов. Отвечай только на русском языке. Используй базу знаний о процедурах для точности.`,
+          content:
+            "Ты опытный SMM-менеджер и копирайтер для косметологической индустрии. Создаёшь качественный маркетинговый контент, который привлекает клиентов. Отвечай только на русском языке. Используй базу знаний о процедурах для точности.",
         },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.8,
-      max_tokens: 1500,
-    }),
-  });
+      maxTokens: 1500,
+    });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status}`);
+    const reply = completion.choices[0]?.message?.content;
+    if (!reply) {
+      log.warn("content generation returned no content, using fallback");
+      return buildFallbackContent(userPrompt);
+    }
+
+    return reply;
+  } catch (error) {
+    log.error("content generation failed, using fallback", error);
+    return buildFallbackContent(userPrompt);
   }
-
-  const data = (await response.json()) as OpenAIChatResponse;
-  return data.choices[0]?.message?.content ?? buildFallbackContent(userPrompt);
 }
 
 function buildFallbackContent(prompt: string): string {
@@ -152,7 +159,11 @@ ${procExamples[0].description}
 *Индивидуальные результаты могут отличаться. Требуется консультация специалиста.*`;
 }
 
-function parseResult(content: string, templateType: ContentTemplateType, _platform: ContentPlatform): ContentGenerationResult {
+function parseResult(
+  content: string,
+  templateType: ContentTemplateType,
+  _platform: ContentPlatform,
+): ContentGenerationResult {
   const hashtagRegex = /#[^\s#]+/g;
   const hashtags = content.match(hashtagRegex) ?? [];
   const uniqueHashtags = Array.from(new Set(hashtags));
@@ -172,7 +183,10 @@ function parseResult(content: string, templateType: ContentTemplateType, _platfo
     content,
     hashtags: uniqueHashtags.length > 0 ? uniqueHashtags : undefined,
     subjectLine,
-    metaDescription: templateType === "seo_description" ? content.split("\n")[1]?.slice(0, 160) : undefined,
+    metaDescription:
+      templateType === "seo_description"
+        ? content.split("\n")[1]?.slice(0, 160)
+        : undefined,
     seoKeywords: metaKeywords.length > 0 ? metaKeywords : undefined,
     wordCount,
   };
@@ -181,9 +195,21 @@ function parseResult(content: string, templateType: ContentTemplateType, _platfo
 function extractSeoKeywords(text: string): string[] {
   const keywords: Set<string> = new Set();
   const cosmetologyTerms = [
-    "косметолог", "косметология", "процедура", "кожа", "уход",
-    "омоложение", "лицо", "инъекции", "филлеры", "биоревитализация",
-    "пилинг", "ботокс", "мезотерапия", "чистка лица", "салон красоты",
+    "косметолог",
+    "косметология",
+    "процедура",
+    "кожа",
+    "уход",
+    "омоложение",
+    "лицо",
+    "инъекции",
+    "филлеры",
+    "биоревитализация",
+    "пилинг",
+    "ботокс",
+    "мезотерапия",
+    "чистка лица",
+    "салон красоты",
   ];
 
   for (const term of cosmetologyTerms) {
@@ -204,7 +230,16 @@ function extractSeoKeywords(text: string): string[] {
 export async function generateContent(
   request: ContentGenerationRequest,
 ): Promise<ContentGenerationResult> {
-  const { platform, templateType, topic, audience, tone, length = "medium", service, seoKeywords } = request;
+  const {
+    platform,
+    templateType,
+    topic,
+    audience,
+    tone,
+    length = "medium",
+    service,
+    seoKeywords,
+  } = request;
   const template = getTemplate(templateType);
 
   const prompt = template.promptBuilder({
@@ -320,7 +355,8 @@ ${procExamples.map((p) => `• ${p.name} — ${p.description.slice(0, 60)}...`).
 
 #зимнийуход #косметология #салонкрасоты #акция #уходзалицом #косметолог #красота #омоложение #пилингзимой`,
 
-    seo_description: `# ${service || topic} — профессиональная процедура для вашей кожи
+    seo_description:
+      `# ${service || topic} — профессиональная процедура для вашей кожи
 
 ${topic} — одна из самых востребованных процедур в современной косметологии. Доверьтесь профессионалам для достижения максимального результата.
 

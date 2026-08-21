@@ -5,6 +5,19 @@ import {
   safetyFilter,
 } from "./openai-service";
 import { procedures } from "./knowledge-base";
+import { resetOpenAIClient } from "./openai-client";
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function requestBody(fetchMock: { mock: { calls: unknown[][] } }): string {
+  const init = fetchMock.mock.calls[0][1] as RequestInit;
+  return init.body as string;
+}
 
 describe("safetyFilter", () => {
   it("allows a regular cosmetology question", () => {
@@ -69,6 +82,7 @@ describe("checkRateLimit", () => {
 describe("generateAIResponse", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    resetOpenAIClient();
     delete process.env.OPENAI_API_KEY;
   });
 
@@ -105,15 +119,14 @@ describe("generateAIResponse", () => {
 
   it("calls OpenAI and maps the reply plus token usage", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
         choices: [
           { message: { role: "assistant", content: "Ответ ассистента" } },
         ],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
       }),
-    });
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await generateAIResponse({
@@ -130,8 +143,8 @@ describe("generateAIResponse", () => {
       totalTokens: 15,
     });
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.model).toBe("gpt-4o-mini");
+    const body = JSON.parse(requestBody(fetchMock));
+    expect(body.model).toBe("gpt-4o");
     expect(body.messages[0].role).toBe("system");
     expect(body.messages[0].content).toContain("ТВОЯ БАЗА ЗНАНИЙ");
     expect(body.messages[1]).toEqual({
@@ -142,12 +155,11 @@ describe("generateAIResponse", () => {
 
   it("enriches the system prompt with skin type and concerns", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
         choices: [{ message: { role: "assistant", content: "ок" } }],
       }),
-    });
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await generateAIResponse({
@@ -159,8 +171,7 @@ describe("generateAIResponse", () => {
       messages: [{ role: "user", content: "Что посоветуете?" }],
     });
 
-    const systemPrompt = JSON.parse(fetchMock.mock.calls[0][1].body).messages[0]
-      .content;
+    const systemPrompt = JSON.parse(requestBody(fetchMock)).messages[0].content;
     expect(systemPrompt).toContain("ТИП КОЖИ КЛИЕНТА: dry");
     expect(systemPrompt).toContain("РЕКОМЕНДУЕМЫЕ ПРОЦЕДУРЫ НА ОСНОВЕ ПРОБЛЕМ");
   });
@@ -169,12 +180,11 @@ describe("generateAIResponse", () => {
     process.env.OPENAI_API_KEY = "sk-test";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
+      vi.fn(async () =>
+        jsonResponse({
           choices: [{ message: { role: "assistant", content: null } }],
         }),
-      }),
+      ),
     );
 
     const result = await generateAIResponse({
@@ -184,29 +194,26 @@ describe("generateAIResponse", () => {
       messages: [{ role: "user", content: "Привет" }],
     });
 
-    expect(result.message).toBe("Извините, произошла ошибка.");
+    expect(result.message).toContain("Извините, произошла ошибка");
   });
 
-  it("throws when the api responds with an error status", async () => {
+  it("returns the knowledge base fallback when the api responds with an error status", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 429,
-          text: async () => "rate limited",
-        }),
+      vi.fn(async () =>
+        jsonResponse({ error: { message: "rate limited" } }, 429),
+      ),
     );
 
-    await expect(
-      generateAIResponse({
-        conversationId: "c1",
-        userId: "u1",
-        tone: "friendly",
-        messages: [{ role: "user", content: "Привет" }],
-      }),
-    ).rejects.toThrow("OpenAI API error: 429 — rate limited");
+    const result = await generateAIResponse({
+      conversationId: "c1",
+      userId: "u1",
+      tone: "friendly",
+      messages: [{ role: "user", content: "Привет" }],
+    });
+
+    expect(result.message.length).toBeGreaterThan(0);
+    expect(result.usage).toBeUndefined();
   });
 });

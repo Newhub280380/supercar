@@ -1,6 +1,12 @@
 "use client";
 
-import { Calendar as CalendarIcon, Camera, Send, Hash, Plus } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  Camera,
+  Send,
+  Hash,
+  Plus,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +32,8 @@ const platformIcons: Record<ContentPlatform, typeof Camera> = {
 const statusStyles = {
   draft: "bg-muted text-muted-foreground",
   scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
-  published: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400",
+  published:
+    "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400",
 };
 
 const statusLabels = {
@@ -40,7 +47,11 @@ function getMonthDays(year: number, month: number): Date[] {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startOffset = (firstDay.getDay() + 6) % 7;
-  for (let i = -startOffset; i <= lastDay.getDate() - 1 + (6 - ((lastDay.getDay() + 6) % 7)); i++) {
+  for (
+    let i = -startOffset;
+    i <= lastDay.getDate() - 1 + (6 - ((lastDay.getDay() + 6) % 7));
+    i++
+  ) {
     if (i < 0) {
       days.push(new Date(year, month, i + 1));
     } else if (i >= lastDay.getDate()) {
@@ -53,8 +64,18 @@ function getMonthDays(year: number, month: number): Date[] {
 }
 
 const MONTH_NAMES = [
-  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
 ];
 
 const DAY_HEADERS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -70,7 +91,9 @@ export function ContentCalendar() {
       title: "Акция на биоревитализацию",
       platform: "instagram",
       templateType: "promotion",
-      date: toIsoDate(new Date(currentYear, currentMonth, Math.min(today.getDate() + 2, 28))),
+      date: toIsoDate(
+        new Date(currentYear, currentMonth, Math.min(today.getDate() + 2, 28)),
+      ),
       status: "scheduled",
     },
     {
@@ -78,7 +101,9 @@ export function ContentCalendar() {
       title: "Советы по зимнему уходу",
       platform: "telegram",
       templateType: "care_tips",
-      date: toIsoDate(new Date(currentYear, currentMonth, Math.min(today.getDate() + 5, 28))),
+      date: toIsoDate(
+        new Date(currentYear, currentMonth, Math.min(today.getDate() + 5, 28)),
+      ),
       status: "draft",
     },
     {
@@ -86,12 +111,17 @@ export function ContentCalendar() {
       title: "Кейс: омоложение после 40",
       platform: "vk",
       templateType: "review",
-      date: toIsoDate(new Date(currentYear, currentMonth, Math.min(today.getDate() + 8, 28))),
+      date: toIsoDate(
+        new Date(currentYear, currentMonth, Math.min(today.getDate() + 8, 28)),
+      ),
       status: "published",
     },
   ]);
 
-  const days = useMemo(() => getMonthDays(currentYear, currentMonth), [currentYear, currentMonth]);
+  const days = useMemo(
+    () => getMonthDays(currentYear, currentMonth),
+    [currentYear, currentMonth],
+  );
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, CalendarEntry[]>();
@@ -133,7 +163,7 @@ export function ContentCalendar() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base font-medium">
-            <CalendarIcon className="size-4 text-primary" />
+            <CalendarIcon className="text-primary size-4" />
             Календарь контента
           </CardTitle>
           <Button variant="outline" size="xs" className="gap-1">
@@ -153,9 +183,12 @@ export function ContentCalendar() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-7 gap-px rounded-lg border border-border/50 overflow-hidden">
+        <div className="border-border/50 grid grid-cols-7 gap-px overflow-hidden rounded-lg border">
           {DAY_HEADERS.map((d) => (
-            <div key={d} className="bg-muted/50 py-1.5 text-center text-[10px] font-medium text-muted-foreground">
+            <div
+              key={d}
+              className="bg-muted/50 text-muted-foreground py-1.5 text-center text-[10px] font-medium"
+            >
               {d}
             </div>
           ))}
@@ -168,7 +201,7 @@ export function ContentCalendar() {
               <div
                 key={i}
                 className={cn(
-                  "min-h-[72px] border-t border-border/30 p-1",
+                  "border-border/30 min-h-[72px] border-t p-1",
                   !isCurrentMonth(day) && "opacity-40",
                   current && "bg-primary/5",
                 )}
@@ -176,7 +209,9 @@ export function ContentCalendar() {
                 <span
                   className={cn(
                     "mb-0.5 inline-flex size-5 items-center justify-center rounded-full text-[10px]",
-                    current ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground",
+                    current
+                      ? "bg-primary text-primary-foreground font-semibold"
+                      : "text-muted-foreground",
                   )}
                 >
                   {day.getDate()}
@@ -186,7 +221,7 @@ export function ContentCalendar() {
                   return (
                     <div
                       key={entry.id}
-                      className="mt-0.5 flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] truncate"
+                      className="mt-0.5 flex items-center gap-0.5 truncate rounded px-1 py-0.5 text-[10px]"
                       title={entry.title}
                     >
                       <Icon className="size-2.5 shrink-0" />
@@ -200,9 +235,22 @@ export function ContentCalendar() {
         </div>
 
         <div className="mt-3 flex flex-wrap gap-3">
-          {(Object.entries(statusLabels) as [keyof typeof statusLabels, string][]).map(([key, label]) => (
-            <span key={key} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              <span className={cn("h-2 w-2 rounded-full", statusStyles[key].split(" ")[0])} />
+          {(
+            Object.entries(statusLabels) as [
+              keyof typeof statusLabels,
+              string,
+            ][]
+          ).map(([key, label]) => (
+            <span
+              key={key}
+              className="text-muted-foreground flex items-center gap-1.5 text-[10px]"
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  statusStyles[key].split(" ")[0],
+                )}
+              />
               {label}
             </span>
           ))}

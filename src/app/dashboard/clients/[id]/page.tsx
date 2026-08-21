@@ -35,8 +35,10 @@ import type { AppointmentStatus } from "@/types";
 import { formatDate } from "@/lib/format";
 
 const STATUS_COLORS: Record<AppointmentStatus, string> = {
-  pending: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  confirmed: "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300",
+  pending:
+    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  confirmed:
+    "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300",
   completed: "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
 };
@@ -54,15 +56,14 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
-        <div className="flex size-14 items-center justify-center rounded-full bg-muted mb-4">
-          <User className="size-6 text-muted-foreground" />
+      <div className="flex min-h-[400px] flex-col items-center justify-center p-8">
+        <div className="bg-muted mb-4 flex size-14 items-center justify-center rounded-full">
+          <User className="text-muted-foreground size-6" />
         </div>
         <p className="text-sm font-medium">Клиент не найден</p>
         <Link href="/dashboard/clients">
           <Button variant="outline" size="sm" className="mt-3">
-            <ArrowLeft className="size-4" />
-            К списку клиентов
+            <ArrowLeft className="size-4" />К списку клиентов
           </Button>
         </Link>
       </div>
@@ -70,7 +71,11 @@ export default function ClientDetailPage() {
   }
 
   const clientAppts = getClientAppointments(clientId);
-  const initials = client.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+  const initials = client.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2);
   const statusStyle = STATUS_STYLES[client.status];
 
   return (
@@ -78,7 +83,7 @@ export default function ClientDetailPage() {
       <div className="mb-4">
         <Link
           href="/dashboard/clients"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
         >
           <ArrowLeft className="size-4" />
           Назад к клиентам
@@ -89,33 +94,48 @@ export default function ClientDetailPage() {
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <Avatar size="lg" className="size-16">
-              <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
+              <AvatarFallback className="bg-primary/10 text-primary text-lg font-semibold">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-heading text-xl font-bold">{client.name}</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-heading text-xl font-bold">
+                  {client.name}
+                </h1>
                 <Badge variant="outline" className={cn("text-xs", statusStyle)}>
-                  {client.status === "vip" && <Star className="size-3 fill-current" />}
-                  {client.status === "vip" ? "VIP" : client.status === "new" ? "Новый" : "Повторный"}
+                  {client.status === "vip" && (
+                    <Star className="size-3 fill-current" />
+                  )}
+                  {client.status === "vip"
+                    ? "VIP"
+                    : client.status === "new"
+                      ? "Новый"
+                      : "Повторный"}
                 </Badge>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-4 text-sm">
                 <span className="flex items-center gap-1.5">
-                  <Mail className="size-3.5" />{client.email}
+                  <Mail className="size-3.5" />
+                  {client.email}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Phone className="size-3.5" />{client.phone}
+                  <Phone className="size-3.5" />
+                  {client.phone}
                 </span>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge variant="outline">
-                  {client.skinType ? SKIN_TYPE_LABELS[client.skinType] : "Не указан"}
+                  {client.skinType
+                    ? SKIN_TYPE_LABELS[client.skinType]
+                    : "Не указан"}
                 </Badge>
                 {client.allergies && client.allergies !== "Нет" && (
-                  <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
-                    <AlertTriangle className="size-3 mr-1" />
+                  <Badge
+                    variant="outline"
+                    className="bg-destructive/10 text-destructive border-destructive/20"
+                  >
+                    <AlertTriangle className="mr-1 size-3" />
                     {client.allergies}
                   </Badge>
                 )}
@@ -131,40 +151,40 @@ export default function ClientDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="pt-6 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                <Calendar className="size-5 text-primary" />
+            <div className="mb-2 flex items-center justify-center">
+              <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
+                <Calendar className="text-primary size-5" />
               </div>
             </div>
             <div className="text-2xl font-bold">{client.totalVisits}</div>
-            <div className="text-xs text-muted-foreground">Всего визитов</div>
+            <div className="text-muted-foreground text-xs">Всего визитов</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-chart-2/20">
+            <div className="mb-2 flex items-center justify-center">
+              <div className="bg-chart-2/20 flex size-10 items-center justify-center rounded-xl">
                 <Star className="size-5" />
               </div>
             </div>
             <div className="text-2xl font-bold">₽{client.totalSpent}</div>
-            <div className="text-xs text-muted-foreground">Общие расходы</div>
+            <div className="text-muted-foreground text-xs">Общие расходы</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <div className="flex items-center justify-center mb-2">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-sage/20">
+            <div className="mb-2 flex items-center justify-center">
+              <div className="bg-sage/20 flex size-10 items-center justify-center rounded-xl">
                 <Clock className="size-5" />
               </div>
             </div>
             <div className="text-2xl font-bold">
               {formatDate(client.lastVisit, "dayMonth")}
             </div>
-            <div className="text-xs text-muted-foreground">Последний визит</div>
+            <div className="text-muted-foreground text-xs">Последний визит</div>
           </CardContent>
         </Card>
       </div>
@@ -177,7 +197,7 @@ export default function ClientDetailPage() {
           </CardHeader>
           <CardContent>
             {clientAppts.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
+              <p className="text-muted-foreground py-8 text-center text-sm">
                 Нет записей у этого клиента
               </p>
             ) : (
@@ -189,33 +209,43 @@ export default function ClientDetailPage() {
                     return (
                       <div
                         key={apt.id}
-                        className="flex items-center gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-muted/30"
+                        className="border-border/50 hover:bg-muted/30 flex items-center gap-3 rounded-lg border p-3 transition-colors"
                       >
-                        <div className={cn(
-                          "flex size-10 items-center justify-center rounded-xl shrink-0",
-                          statusColor,
-                        )}>
+                        <div
+                          className={cn(
+                            "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                            statusColor,
+                          )}
+                        >
                           <Calendar className="size-4" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium">{apt.service}</span>
-                            <Badge variant="outline" className={cn("text-[10px]", statusColor)}>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium">
+                              {apt.service}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={cn("text-[10px]", statusColor)}
+                            >
                               {APPOINTMENT_STATUS_LABELS[apt.status]}
                             </Badge>
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-muted-foreground text-xs">
                             {formatDate(apt.date, "long")}
-                            {" · "}{apt.time}–{apt.endTime}
+                            {" · "}
+                            {apt.time}–{apt.endTime}
                           </div>
                           {apt.notes && (
-                            <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/70">
+                            <div className="text-muted-foreground/70 mt-1 flex items-center gap-1 text-xs">
                               <MessageSquare className="size-3" />
                               {apt.notes}
                             </div>
                           )}
                         </div>
-                        <span className="text-sm font-medium whitespace-nowrap">₽{apt.servicePrice}</span>
+                        <span className="text-sm font-medium whitespace-nowrap">
+                          ₽{apt.servicePrice}
+                        </span>
                       </div>
                     );
                   })}
@@ -232,7 +262,9 @@ export default function ClientDetailPage() {
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Тип кожи</span>
-                <span className="font-medium">{client.skinType ? SKIN_TYPE_LABELS[client.skinType] : "—"}</span>
+                <span className="font-medium">
+                  {client.skinType ? SKIN_TYPE_LABELS[client.skinType] : "—"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Аллергии</span>
@@ -253,7 +285,7 @@ export default function ClientDetailPage() {
                 <CardTitle>Заметки</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">{client.notes}</p>
+                <p className="text-muted-foreground text-sm">{client.notes}</p>
               </CardContent>
             </Card>
           )}

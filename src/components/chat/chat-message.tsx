@@ -6,12 +6,14 @@ import { Bot, User } from "lucide-react";
 import type { Message } from "@/hooks/use-chat";
 
 function MarkdownContent({ content }: { content: string }) {
-  const parts = content.split(/(\*\*.*?\*\*|\n|###.*?\n)/);
+  const safeContent = typeof content === "string" ? content : "";
+  const parts = safeContent.split(/(\*\*.*?\*\*|\n|###.*?\n)/);
 
   return (
     <div className="space-y-1">
       {parts.map((part, i) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
+        if (!part) return null;
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
           return (
             <strong key={i} className="font-semibold">
               {part.slice(2, -2)}
@@ -49,12 +51,15 @@ interface ChatMessageProps {
 
 export const ChatMessage = memo(function ChatMessage({ message, isLatest }: ChatMessageProps) {
   const isUser = message.role === "user";
-  const time = message.timestamp
-    ? new Date(message.timestamp).toLocaleTimeString("ru-RU", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
+  const time = (() => {
+    if (!message.timestamp) return null;
+    const date = new Date(message.timestamp);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  })();
 
   return (
     <div

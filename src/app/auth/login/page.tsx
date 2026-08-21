@@ -5,14 +5,27 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormError, IconField, PasswordField, usePasswordVisibility } from "@/components/auth/form-fields";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  FormError,
+  IconField,
+  PasswordField,
+  usePasswordVisibility,
+} from "@/components/auth/form-fields";
 import { Mail, Lock } from "lucide-react";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { visible: showPassword, toggle: togglePassword } = usePasswordVisibility();
+  const { visible: showPassword, toggle: togglePassword } =
+    usePasswordVisibility();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -38,7 +51,7 @@ function LoginForm() {
   return (
     <Card className="shadow-lg">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-heading">Welcome Back</CardTitle>
+        <CardTitle className="font-heading text-2xl">Welcome Back</CardTitle>
         <CardDescription>Sign in to your account</CardDescription>
       </CardHeader>
       <CardContent>
@@ -68,19 +81,25 @@ function LoginForm() {
             onToggleVisibility={togglePassword}
           />
           <div className="flex justify-end">
-            <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
+            <Link
+              href="/auth/forgot-password"
+              className="text-primary text-sm hover:underline"
+            >
               Forgot password?
             </Link>
           </div>
-          <Button type="submit" className="w-full h-10" disabled={loading}>
+          <Button type="submit" className="h-10 w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="font-medium text-primary hover:underline">
+          <Link
+            href="/auth/register"
+            className="text-primary font-medium hover:underline"
+          >
             Register
           </Link>
         </p>
@@ -91,7 +110,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" /></div>}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center">
+          <div className="border-muted border-t-primary h-8 w-8 animate-spin rounded-full border-4" />
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );
