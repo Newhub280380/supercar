@@ -16,6 +16,7 @@ import {
   Menu,
   PenLine,
   BarChart3,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,18 @@ export default function DashboardLayout({
 
         <nav className="flex-1 overflow-y-auto p-2">
           <div className="flex flex-col gap-1">
+            <a
+              href="/office/house/index.html"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                collapsed && "justify-center px-2",
+              )}
+              title="3D-офис: комнаты — отделы компании"
+            >
+              <Building2 className="size-4 shrink-0" />
+              {!collapsed && <span>3D-офис</span>}
+            </a>
             {NAV_ITEMS.map((item) => {
               const isActive =
                 pathname === item.href ||
