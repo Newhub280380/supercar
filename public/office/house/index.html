@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Management House // HQ-01</title>
+<style>
+  :root { --neon: #00ffcc; }
+  * { box-sizing: border-box; }
+  body { margin: 0; overflow: hidden; background: #000; color: #eaeaea;
+         font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  canvas { display: block; }
+
+  #hud { position: fixed; inset: 0; pointer-events: none; padding: 18px;
+         display: flex; flex-direction: column; justify-content: space-between; }
+  .panel { background: rgba(4, 8, 8, .82); border: 1px solid #1e2b2b;
+           border-left: 3px solid var(--neon); border-radius: 6px; padding: 12px 14px;
+           max-width: 340px; backdrop-filter: blur(3px); }
+  .panel h3 { margin: 0 0 4px; font-size: 14px; letter-spacing: 2px; color: var(--neon); }
+  .panel small { color: #7d8f8f; }
+  #row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  #aim { position: fixed; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px;
+         border: 1px solid var(--neon); border-radius: 50%; opacity: .55; }
+  #look { position: fixed; left: 50%; top: calc(50% + 26px); transform: translateX(-50%);
+          font: 12px monospace; letter-spacing: 1px; color: var(--neon); text-shadow: 0 0 8px #000; }
+  #floor-tag { position: fixed; right: 18px; top: 50%; transform: translateY(-50%);
+               font: 12px monospace; letter-spacing: 2px; color: var(--neon); text-align: right;
+               text-shadow: 0 0 8px #000; opacity: .85; }
+  #floor-tag b { display: block; font-size: 26px; letter-spacing: 4px; }
+
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; gap: 14px;
+           align-items: center; justify-content: center; text-align: center;
+           background: radial-gradient(circle at 50% 40%, #04201c 0%, #000 70%); z-index: 30; }
+  #start h1 { margin: 0; font-size: clamp(28px, 6vw, 54px); letter-spacing: 8px; color: var(--neon); }
+  button { font: inherit; letter-spacing: 2px; cursor: pointer; color: #04100e;
+           background: var(--neon); border: 0; border-radius: 4px; padding: 12px 26px; }
+  #keys { color: #6e8080; font: 12px/1.8 monospace; }
+
+  #card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          width: min(440px, 92vw); background: #060a0a; border: 1px solid #1e2b2b;
+          border-top: 4px solid var(--neon); border-radius: 8px; padding: 20px 22px;
+          display: none; z-index: 40; box-shadow: 0 24px 60px rgba(0,0,0,.8); }
+  #card h2 { margin: 0; font-size: 20px; letter-spacing: 3px; color: var(--neon); }
+  #card .sub { color: #7d8f8f; margin-bottom: 14px; }
+  #card table { width: 100%; border-collapse: collapse; }
+  #card td { padding: 7px 0; border-bottom: 1px solid #141d1d; }
+  #card td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bad { color: #ff5f6d; } .good { color: var(--neon); }
+  #card footer { display: flex; justify-content: space-between; align-items: center;
+                 margin-top: 16px; gap: 10px; }
+  #card .note { color: #6e8080; font-size: 12px; }
+  #card .open { font: inherit; letter-spacing: 2px; text-decoration: none; color: var(--neon);
+                border: 1px solid var(--neon); border-radius: 4px; padding: 11px 20px; }
+  #card .open:hover { background: rgba(0,255,204,.12); }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="panel">
+    <h3>THE MANAGEMENT HOUSE // HQ-01</h3>
+    <div id="clock">—</div>
+    <small>два этажа, семь отделов и чилаут-зона, живые показатели по клику</small>
+  </div>
+  <div id="row">
+    <div class="panel"><small>WASD — идти, Shift — бежать, мышь — смотреть,<br>ЛКМ на комнате — открыть отдел, E — войти в модуль, Esc — выйти из обзора<br>лестница — в правом конце коридора</small></div>
+    <div class="panel" style="max-width:210px"><small id="stat">отделов: 7 · чилаут: 1 · этажей: 2</small></div>
+  </div>
+</div>
+<div id="aim"></div>
+<div id="look"></div>
+<div id="floor-tag"><b>1</b>ЭТАЖ</div>
+
+<div id="card">
+  <h2 id="c-title">Отдел</h2>
+  <div class="sub" id="c-sub"></div>
+  <table id="c-rows"></table>
+  <footer>
+    <span class="note" id="c-note"></span>
+    <span style="display:flex;gap:8px">
+      <a id="c-open" class="open" href="#" hidden>ОТКРЫТЬ МОДУЛЬ</a>
+      <button onclick="window.closeCard()">ЗАКРЫТЬ</button>
+    </span>
+  </footer>
+</div>
+
+<div id="start">
+  <h1>MANAGEMENT HOUSE</h1>
+  <div id="keys">WASD — движение · мышь — обзор · ЛКМ — данные отдела · E — модуль · Esc — выход</div>
+  <button id="go">ВОЙТИ В ДОМ</button>
+  <div id="keys">два этажа · 7 интерактивных комнат + чилаут-зона с деревом света · стены светятся на подходе</div>
+  <div id="keys"><a href="../index.html" style="color:#00ffcc">генеральный хаб — список модулей списком</a></div>
+  <div id="keys"><a href="/dashboard" style="color:#00ffcc">◀ вернуться в CRM</a></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { moduleByRoom, ROOT } from '../shared/modules.js';
+import { STATS, PRODUCTS, money } from '../shared/data.js';
+
+/* ---------- Планировка. Дом на два этажа: 4 отдела внизу, 3 наверху,
+   между ними пандус-лестница в правом конце коридора. ---------- */
+const ROOM = 16, WALL = 0.4, H = 8, LIFT = 10;
+const COL = 22, ROWZ = 13, HALF = ROOM / 2, DOOR = 5;
+const RAMP_X0 = 26, RAMP_X1 = 42, RAMP_HALF = 4;
+const PLAN_X0 = -40, PLAN_X1 = 44, PLAN_Z = 24;
+
+const last = STATS.revenue.at(-1);
+const lowStock = PRODUCTS.filter(p => p.stock < 15).length;
+const paid = STATS.funnel.at(-1).v, leadsAll = STATS.funnel[0].v;
+
+const DEPARTMENTS = [
+  { id: 'reception',  name: 'РЕСЕПШН',        floor: 0, col: 1,  row: 1,  hue: 0x9df9ff,
+    sub: 'первое касание: визитка, профиль, ссылки',
+    rows: [['Обращений в Instagram', STATS.funnel[1].v],
+           ['Ответ в среднем', '4 мин'],
+           ['Переходов из bio', 318],
+           ['Город', 'Алматы']] },
+  { id: 'sales',      name: 'ОТДЕЛ ПРОДАЖ',   floor: 0, col: -1, row: -1, hue: 0x00ffcc,
+    sub: 'входящие заявки и обзвон базы',
+    rows: [['Лидов в базе', leadsAll], ['HOT-лидов', '—'],
+           ['Счётов выставлено', STATS.funnel[3].v],
+           ['Оплат', paid],
+           ['Конверсия в оплату', Math.round(paid / leadsAll * 100) + '%']],
+    note: 'лиды подхватываются из leads.json радара' },
+  { id: 'marketing',  name: 'МАРКЕТИНГ',      floor: 0, col: 1,  row: -1, hue: 0x00ffff,
+    sub: 'реклама, креативы, тесты',
+    rows: [['Бюджет за месяц', money(STATS.ads.budget)], ['CPL', money(STATS.ads.cpl)],
+           ['CTR', STATS.ads.ctr.toString().replace('.', ',') + '%'],
+           ['Лучший креатив', STATS.ads.best]] },
+  { id: 'warehouse',  name: 'СКЛАД',          floor: 0, col: -1, row: 1,  hue: 0x7cf9ff,
+    sub: 'остатки и отгрузки',
+    rows: [['Позиций в линейке', PRODUCTS.length],
+           ['Штук на складе', PRODUCTS.reduce((s, p) => s + p.stock, 0)],
+           ['Ниже минимума', [String(lowStock), lowStock ? 'bad' : 'good']],
+           ['Стоимость остатков', money(PRODUCTS.reduce((s, p) => s + p.stock * p.price, 0))]] },
+  { id: 'accounting', name: 'БУХГАЛТЕРИЯ',    floor: 1, col: -1, row: -1, hue: 0x00d9ff,
+    sub: 'деньги, налоги, сверки',
+    rows: [['Приход за месяц', money(last.in)], ['Расход', money(last.out)],
+           ['Дебиторка', [money(STATS.finance.receivable), 'bad']],
+           ['Налоги к сроку', STATS.finance.tax_due]] },
+  { id: 'admin',      name: 'АДМИНИСТРАЦИЯ',  floor: 1, col: 1,  row: -1, hue: 0x66ffd9,
+    sub: 'персонал и процессы',
+    rows: [['Сотрудников', STATS.team.people], ['На смене сейчас', STATS.team.on_shift],
+           ['Задач в работе', STATS.team.tasks],
+           ['Просрочено', [String(STATS.team.overdue), 'bad']]] },
+  { id: 'chill',      name: 'ЧИЛАУТ-ЗОНА',    floor: 1, col: -1, row: 1,  hue: 0x7dffe0,
+    lounge: true, green: 0x2bff88,
+    sub: 'фуршетная кухня, дерево света и пульт с музыкой',
+    rows: [['Кофе и фуршет', 'круглосуточно'],
+           ['Мест за стойкой', 6],
+           ['Плейлист', 'LO-FI NEON'],
+           ['Правило зоны', 'идеи громче задач']],
+    note: 'ЛКМ по пульту — включить и выключить музыку' },
+  { id: 'director',   name: 'ДИРЕКТОР',       floor: 1, col: 0,  row: 1,  hue: 0x3dfbe0,
+    sub: 'то, что решается только здесь',
+    rows: [['Чистая прибыль', [money(last.in - last.out), 'good']],
+           ['Рост к первому месяцу',
+            Math.round(last.in / STATS.revenue[0].in * 100 - 100) + '%'],
+           ['Свободные деньги', money(STATS.finance.cash)],
+           ['Риск №1', 'зависимость от 1 поставщика']] },
+];
+
+// Связь комната → модуль берём из манифеста, а не дублируем здесь.
+for (const dep of DEPARTMENTS) dep.mod = moduleByRoom(dep.id);
+
+/* ---------- Сцена ---------- */
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x05080b, 0.011);
+
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 400);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+/* Фотореалистичный кадр: киношный тонмаппинг вместо линейного клиппинга,
+   мягкие тени и HDRI-окружение — свет и отражения берутся из панорамы,
+   поэтому металл, стекло и мокрый бетон выглядят снятыми, а не залитыми. */
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+/* Материалы — фотосканы, а не цвета: бетон, глазурованная чешуя и вырезанные
+   по альфе снимки живой зелени. */
+const texLoader = new THREE.TextureLoader();
+const TEX = {
+  floor: texLoader.load('tex/floor.jpg', () => linkClones(TEX.floor)),
+  scales: texLoader.load('tex/scales.jpg', () => linkClones(TEX.scales))
+};
+for (const k of ['floor', 'scales']) TEX[k].colorSpace = THREE.SRGBColorSpace;
+for (const k of ['floor', 'scales']) {
+  TEX[k].wrapS = TEX[k].wrapT = THREE.RepeatWrapping;
+  TEX[k].anisotropy = 4;
+}
+
+/* Клон текстуры делается до окончания загрузки, поэтому картинку в клоны
+   надо перенести вручную — иначе материал остаётся без текстуры. */
+const texClones = new Map();
+function tiled(base, rx, ry) {
+  const t = base.clone();
+  t.repeat.set(rx, ry);
+  const list = texClones.get(base) ?? [];
+  list.push(t);
+  texClones.set(base, list);
+  if (base.image) linkClones(base);
+  return t;
+}
+function linkClones(base) {
+  for (const t of texClones.get(base) ?? []) {
+    t.image = base.image;
+    t.needsUpdate = true;
+  }
+}
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+texLoader.load('tex/env.jpg', tx => {
+  tx.mapping = THREE.EquirectangularReflectionMapping;
+  tx.colorSpace = THREE.SRGBColorSpace;
+  scene.environment = pmrem.fromEquirectangular(tx).texture;
+  scene.background = tx;
+  scene.backgroundIntensity = 0.5;
+  scene.environmentIntensity = 0.9;
+});
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+// Bloom только по ярким источникам: неон и подсветка растекаются как в кино.
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.38, 0.7, 0.85);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  bloom.setSize(innerWidth, innerHeight);
+});
+
+scene.add(new THREE.HemisphereLight(0x22323c, 0x06090c, 0.35));
+
+/* Плита этажа. Верхняя короче нижней: справа остаётся проём под лестницу. */
+function slab(y, x0, x1) {
+  const w = x1 - x0, d = PLAN_Z * 2;
+  const map = tiled(TEX.floor, w / 3, d / 3);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+    new THREE.MeshStandardMaterial({ map, roughnessMap: map, bumpMap: map, bumpScale: 0.12,
+                                     color: 0x4c565c, roughness: 0.42,
+                                     metalness: 0.35, envMapIntensity: 0.9 }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set((x0 + x1) / 2, y, 0);
+  m.receiveShadow = true;
+  scene.add(m);
+  const grid = new THREE.GridHelper(Math.max(w, d), Math.max(w, d) / 2, 0x113033, 0x0a1a1c);
+  grid.position.set((x0 + x1) / 2, y + 0.02, 0);
+  scene.add(grid);
+}
+slab(0, PLAN_X0, PLAN_X1);
+slab(LIFT, PLAN_X0, RAMP_X0);
+
+/* Плоские подписи: текст на canvas дешевле шрифтовой геометрии
+   и читается с любого расстояния. */
+function label(text, color) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#04080a'; g.fillRect(0, 0, 512, 128);
+  g.strokeStyle = '#' + color.toString(16).padStart(6, '0');
+  g.lineWidth = 6; g.strokeRect(3, 3, 506, 122);
+  g.fillStyle = g.strokeStyle;
+  // Кегль подбираем под длину строки: длинные подписи иначе срезались рамкой.
+  let size = 52;
+  do {
+    g.font = `bold ${size}px "Segoe UI", sans-serif`;
+    size -= 2;
+  } while (size > 20 && g.measureText(text).width > 470);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 256, 68, 470);
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  return new THREE.Mesh(new THREE.PlaneGeometry(8, 2),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+}
+
+/* Стены собираем сегментами и складываем их AABB — по ним же считаем
+   столкновения, поэтому «пройти сквозь стену» нельзя по построению.
+   Стены отдела получают собственный материал: он подсвечивается,
+   когда игрок подходит ближе REACT_NEAR. */
+const colliders = [];
+const clickable = [];
+const reactive = [];
+const REACT_FAR = 15, REACT_NEAR = 4;
+
+function wall(cx, y, cz, w, d, hue) {
+  // Бетон — фотоскан: у стены видны зерно и микротрещины, а свет отдела
+  // проступает через emissive, когда игрок подходит ближе.
+  const map = tiled(TEX.floor, Math.max(w, d) / 2.2, H / 2.2);
+  const mat = new THREE.MeshStandardMaterial({
+    map, roughnessMap: map, bumpMap: map, bumpScale: 0.5,
+    color: 0x20262b, roughness: 0.9, metalness: 0.1, envMapIntensity: 0.6,
+    emissive: new THREE.Color(hue ?? 0x000000), emissiveIntensity: 0,
+  });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), mat);
+  m.position.set(cx, y + H / 2, cz);
+  scene.add(m);
+  colliders.push(new THREE.Box3().setFromObject(m));
+  if (hue) {
+    reactive.push(m);
+    // Неоновый кант по верху стены: планировка читается даже в темноте.
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.02, 0.08, d + 0.02),
+      new THREE.MeshBasicMaterial({ color: hue }));
+    trim.position.set(cx, y + H - 0.5, cz);
+    scene.add(trim);
+  }
+  return m;
+}
+
+function dashboard(dep, x0, y, z0) {
+  // Настольный 3D-дэшборд: выручка по месяцам столбиками, чтобы цифры
+  // читались прямо из комнаты, а не только из карточки.
+  const group = new THREE.Group();
+  const max = Math.max(...STATS.revenue.map(r => r.in));
+  STATS.revenue.forEach((r, i) => {
+    const h = 0.4 + 2.6 * (r.in / max);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.5, h, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x0a1418, emissive: new THREE.Color(dep.hue),
+                                       emissiveIntensity: 0.7, roughness: 0.4 }));
+    bar.position.set((i - (STATS.revenue.length - 1) / 2) * 0.9, h / 2, 0);
+    group.add(bar);
+  });
+  group.position.set(x0, y + 2.6, z0 - 3);
+  scene.add(group);
+  group.traverse(o => { o.userData.dep = dep; if (o.isMesh) clickable.push(o); });
+}
+
+/* Объекты, которым нужен кадр: дерево света, чешуя и эквалайзер пульта. */
+const animated = [];
+
+/* Мягкое пятно для тумана: радиальный градиент без краёв, поэтому дымка у
+   корней не читается прямоугольником. */
+const MIST_TEX = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const rad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  rad.addColorStop(0, 'rgba(255,255,255,1)');
+  rad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = rad;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+
+/* Зелень — сканы настоящих растений (Poly Haven, CC0): объёмная геометрия
+   ствола и листьев вместо плоских карточек, поэтому крона перекрывает сама
+   себя и обходится на 360° без «доворота» к камере. Геометрия сжата Draco,
+   текстуры — webp, поэтому дерево весит мегабайты, а не десятки. */
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/gltf/');
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
+
+const modelCache = new Map();
+function loadModel(name) {
+  if (!modelCache.has(name)) {
+    modelCache.set(name, new Promise((res, rej) =>
+      gltfLoader.load(`models/${name}.glb`, g => res(g.scene), undefined, rej)));
+  }
+  return modelCache.get(name);
+}
+
+/** Ставит скан в сцену: высота подгоняется под кадр по реальному боксу
+    модели, листва получает двусторонние материалы и отклик на HDRI. */
+function plant(name, x0, y, z0, height, o = {}) {
+  const holder = new THREE.Group();
+  holder.position.set(x0, y, z0);
+  holder.rotation.y = o.spin ?? Math.random() * Math.PI * 2;
+  scene.add(holder);
+
+  loadModel(name).then(src => {
+    const obj = src.clone(true);
+    const box = new THREE.Box3().setFromObject(obj);
+    const k = height / Math.max(box.max.y - box.min.y, 1e-3);
+    obj.scale.setScalar(k);
+    obj.position.y = -box.min.y * k - (o.sink ?? 0);
+    obj.traverse(m => {
+      if (!m.isMesh) return;
+      m.castShadow = m.receiveShadow = o.shadow !== false;
+      m.material = m.material.clone();
+      // Листья в сканах — тонкие полигоны: без DoubleSide половина кроны
+      // пропадает, стоит зайти за дерево.
+      m.material.side = THREE.DoubleSide;
+      m.material.envMapIntensity = 1.2;
+      if (o.glow) {
+        m.material.emissive = new THREE.Color(o.glow);
+        m.material.emissiveMap = m.material.map;
+        m.material.emissiveIntensity = o.glowPower ?? 0.05;
+        o.lit?.push(m.material);
+      }
+    });
+    holder.add(obj);
+  });
+  return holder;
+}
+
+/** Дерево с подсветкой: скан настоящего дерева, снизу два прожектора,
+    туман по корням, мшистые камни и подлесок из папоротника и кустов.
+    Свет уходит в HDRI и отражается в полу — дерево стоит в сцене. */
+function realTree(x0, y, z0, hue) {
+  plant('island_tree_02', x0, y, z0, 7.4, { spin: 0.7 });
+
+  // Ствол — невидимый коллайдер: сквозь дерево пройти нельзя.
+  colliders.push(new THREE.Box3().setFromCenterAndSize(
+    new THREE.Vector3(x0, y + 1.5, z0), new THREE.Vector3(1.6, 3, 1.6)));
+
+  // Свет тёплый и белый: зелень должна быть зелёной от листьев, а не от лампы.
+  for (const dx of [-1.5, 1.5]) {
+    const sp = new THREE.SpotLight(0xffeccd, 22, 20, 0.62, 0.7, 1.9);
+    sp.position.set(x0 + dx, y + 0.25, z0 + 0.6);
+    sp.target.position.set(x0, y + 7, z0);
+    // Без castShadow карта теней не считается вовсе, и подсветка выглядит
+    // наклейкой: дерево не отбрасывает тень на пол и на подлесок.
+    sp.castShadow = true;
+    sp.shadow.mapSize.set(1024, 1024);
+    sp.shadow.bias = -0.0015;
+    sp.shadow.camera.near = 0.5;
+    sp.shadow.camera.far = 22;
+    scene.add(sp, sp.target);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffeedd }));
+    bulb.position.copy(sp.position);
+    scene.add(bulb);
+  }
+
+  // Туман по корням: мягкие полупрозрачные карточки, подхватывают свет снизу.
+  const mist = [];
+  for (let i = 0; i < 5; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(7 - i * 0.6, 1.5),
+      new THREE.MeshBasicMaterial({ map: MIST_TEX, color: hue, transparent: true,
+                                    opacity: 0.05, depthWrite: false,
+                                    blending: THREE.AdditiveBlending }));
+    m.position.set(x0, y + 0.4 + i * 0.32, z0 + (i - 2) * 0.35);
+    scene.add(m);
+    mist.push(m);
+  }
+
+  // Подлесок и камни у корней: сканы папоротника, кустов и мшистых валунов.
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + 0.4;
+    const r = 3.2 + (i % 3) * 0.5;
+    const px = x0 + Math.cos(a) * r, pz = z0 + Math.sin(a) * r;
+    plant(i % 2 ? 'fern_02' : 'shrub_04', px, y, pz, i % 2 ? 0.85 : 0.7,
+          { sink: 0.05 });
+    if (i % 3 === 0) plant('rock_moss_set_01', (px + x0) / 2, y, (pz + z0) / 2, 0.7);
+  }
+
+  animated.push(t => {
+    mist.forEach((m, i) => {
+      m.rotation.y = Math.atan2(camera.position.x - x0, camera.position.z - z0);
+      m.material.opacity = 0.035 + 0.03 * Math.abs(Math.sin(t * 0.5 + i));
+    });
+  });
+}
+
+/** Дальний план: зелень в глубине зоны — комнатное дерево и кусты, тусклее
+    и без реакции, глаз достраивает по ним объём помещения. */
+function deepGreen(x0, y, z0, height) {
+  plant(height > 2 ? 'pachira_aquatica_01' : 'shrub_04', x0, y, z0, height);
+}
+
+/** Зелёная чешуя: фотоскан глазурованных пластин как PBR-материал —
+    отражения берутся из HDRI, поэтому блики бегут по плиткам при каждом шаге,
+    а на подходе стена дополнительно разгорается изнутри. */
+function scaleWall(x, y, z0, hue) {
+  const w = ROOM - 1.2, h = 6.4;
+  const map = tiled(TEX.scales, 3, 2);
+  const mat = new THREE.MeshStandardMaterial({
+    map, bumpMap: map, bumpScale: 0.55,
+    roughness: 0.12, metalness: 0.35, envMapIntensity: 2.2,
+    emissive: new THREE.Color(hue), emissiveMap: map, emissiveIntensity: 0.08
+  });
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  panel.position.set(x, y + 1.2 + h / 2, z0);
+  panel.rotation.y = Math.PI / 2;
+  scene.add(panel);
+
+  // Скользящий световой блик: точечный свет ходит вдоль стены, поэтому
+  // мозаика «играет» настоящими отражениями, а не нарисованной волной.
+  const glint = new THREE.PointLight(0xd9fff0, 9, 11, 2);
+  scene.add(glint);
+
+  animated.push(t => {
+    const d = camera.position.distanceTo(panel.position);
+    const prox = THREE.MathUtils.clamp(1.5 - d / 11, 0.15, 1.2);
+    mat.emissiveIntensity = 0.02 + 0.08 * prox;
+    glint.position.set(x + 1.4, y + 2.5 + 2.6 * (0.5 + 0.5 * Math.sin(t * 0.55)),
+                       z0 + Math.sin(t * 0.32) * (ROOM / 2 - 1.5));
+    glint.intensity = 8 + 10 * prox;
+  });
+}
+
+/* Пульт с музыкой: короткий лоу-фай пэд на WebAudio, включается ЛКМ.
+   Файлов нет специально — звук синтезируется в браузере. */
+let audioCtx = null, musicGain = null, musicOn = false;
+function toggleMusic() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 0;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 900;
+    musicGain.connect(filter).connect(audioCtx.destination);
+    for (const f of [110, 164.81, 220, 277.18]) {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.18;
+      const lfo = audioCtx.createOscillator();
+      lfo.frequency.value = 0.07 + f / 4000;
+      const lfoGain = audioCtx.createGain();
+      lfoGain.gain.value = 0.14;
+      lfo.connect(lfoGain).connect(g.gain);
+      osc.connect(g).connect(musicGain);
+      osc.start(); lfo.start();
+    }
+  }
+  audioCtx.resume();
+  musicOn = !musicOn;
+  musicGain.gain.setTargetAtTime(musicOn ? 0.22 : 0, audioCtx.currentTime, 0.4);
+}
+
+function deck(dep, x0, y, z0) {
+  const hue = dep.hue;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.0, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0x0b1216, roughness: 0.45, metalness: 0.7 }));
+  body.position.set(x0, y + 0.5, z0);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0x0f1a1e, metalness: 0.9, roughness: 0.18,
+                                     envMapIntensity: 1.6,
+                                     emissive: new THREE.Color(hue), emissiveIntensity: 0.07 }));
+  top.position.set(x0, y + 1.02, z0);
+  scene.add(body, top);
+  colliders.push(new THREE.Box3().setFromObject(body));
+
+  const bars = [];
+  for (let i = 0; i < 9; i++) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1, 0.14),
+      new THREE.MeshStandardMaterial({ color: 0x08120f, roughness: 0.3, metalness: 0.6,
+                                       emissive: new THREE.Color(hue), emissiveIntensity: 1.1 }));
+    bar.position.set(x0 - 1.0 + i * 0.25, y + 1.3, z0 - 0.2);
+    scene.add(bar);
+    bars.push(bar);
+    bar.userData = { dep, deck: true };
+    clickable.push(bar);
+  }
+  animated.push(t => {
+    for (let i = 0; i < bars.length; i++) {
+      const h = musicOn
+        ? 0.25 + 0.75 * Math.abs(Math.sin(t * (1.6 + i * 0.4) + i))
+        : 0.08;
+      bars[i].scale.y = h;
+      bars[i].position.y = y + 1.06 + h / 2;
+    }
+  });
+
+  const sign = label(musicLabel(), hue);
+  sign.scale.set(0.16, 0.16, 1);
+  sign.position.set(x0 + 0.2, y + 1.6, z0 + 0.2);
+  sign.rotation.y = Math.PI / 4;
+  scene.add(sign);
+  animated.push(() => {
+    // Подпись развёрнута к наблюдателю: с обратной стороны она не висит пустой рамкой.
+    sign.rotation.y = Math.atan2(camera.position.x - sign.position.x,
+                                 camera.position.z - sign.position.z);
+    if (sign.userData.on === musicOn) return;
+    sign.userData.on = musicOn;
+    sign.material.map.dispose();
+    sign.material.map = label(musicLabel(), hue).material.map;
+  });
+  for (const o of [body, top, sign]) { o.userData = { dep, deck: true }; clickable.push(o); }
+}
+const musicLabel = () => (musicOn ? 'МУЗЫКА: ВКЛ' : 'ПУЛЬТ · ЛКМ — МУЗЫКА');
+
+/** Фуршетная кухня: стойка, барные стулья, кофемашина и тарелки. */
+function kitchen(x0, y, z0, hue) {
+  const steel = new THREE.MeshStandardMaterial({ color: 0x1a2429, metalness: 0.85, roughness: 0.28 });
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.05, 7), steel);
+  counter.position.set(x0, y + 0.52, z0);
+  const topBoard = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.1, 7.2),
+    new THREE.MeshStandardMaterial({ color: 0x223038, metalness: 0.9, roughness: 0.15,
+                                     emissive: new THREE.Color(hue), emissiveIntensity: 0.12 }));
+  topBoard.position.set(x0, y + 1.08, z0);
+  scene.add(counter, topBoard);
+  colliders.push(new THREE.Box3().setFromObject(counter));
+
+  // Кофемашина и фуршетные блюда на стойке.
+  const coffee = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.6), steel);
+  coffee.position.set(x0, y + 1.55, z0 - 2.9);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.22),
+    new THREE.MeshBasicMaterial({ color: hue }));
+  screen.position.set(x0 - 0.36, y + 1.75, z0 - 2.9);
+  screen.rotation.y = -Math.PI / 2;
+  scene.add(coffee, screen);
+  for (let i = 0; i < 5; i++) {
+    const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.28, 0.12, 20),
+      new THREE.MeshStandardMaterial({ color: 0xdfe7ea, metalness: 0.9, roughness: 0.2 }));
+    dish.position.set(x0, y + 1.19, z0 - 1 + i * 0.9);
+    const food = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10),
+      new THREE.MeshStandardMaterial({ color: i % 2 ? 0xff9ec4 : hue,
+                                       emissive: new THREE.Color(i % 2 ? 0xff9ec4 : hue),
+                                       emissiveIntensity: 0.25, roughness: 0.5 }));
+    food.position.set(x0, y + 1.3, z0 - 1 + i * 0.9);
+    scene.add(dish, food);
+  }
+
+  // Барные стулья со стороны зала.
+  for (let i = 0; i < 3; i++) {
+    const z = z0 - 2 + i * 2;
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.12, 0.85, 10), steel);
+    leg.position.set(x0 - 1.5, y + 0.42, z);
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.12, 20),
+      new THREE.MeshStandardMaterial({ color: 0x0e1a1c, roughness: 0.6,
+                                       emissive: new THREE.Color(hue), emissiveIntensity: 0.14 }));
+    seat.position.set(x0 - 1.5, y + 0.9, z);
+    scene.add(leg, seat);
+  }
+}
+
+function lounge(dep, x0, y, z0) {
+  // Зелёный только у дерева и чешуи: стены остаются в общей мятно-циановой гамме.
+  realTree(x0, y, z0, dep.green);
+  // Зелень вдоль дальней стены: глубина зоны читается живыми кустами.
+  for (const [dx, h] of [[-5.9, 3.1], [-2.4, 1.2], [2.2, 1.4], [5.7, 2.9]]) {
+    deepGreen(x0 + dx, y, z0 + HALF - WALL * 2.2, h);
+  }
+  kitchen(x0 + HALF - 1.4, y, z0 - 0.5, dep.hue);
+  scaleWall(x0 - HALF + WALL, y, z0, dep.green);
+  deck(dep, x0 - 4.6, y, z0 - 4.6);
+}
+
+function room(dep) {
+  const x0 = dep.col * COL;
+  const z0 = dep.row * ROWZ;
+  const y = dep.floor * LIFT;
+  const doorSide = dep.row === -1 ? 1 : -1; // дверь всегда в коридор
+  const side = (ROOM - DOOR) / 2;
+
+  wall(x0, y, z0 - doorSide * HALF, ROOM, WALL, dep.hue);              // глухая стена
+  wall(x0 - HALF, y, z0, WALL, ROOM, dep.hue);
+  wall(x0 + HALF, y, z0, WALL, ROOM, dep.hue);
+  wall(x0 - (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue);
+  wall(x0 + (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue);
+
+  // Пол-подсветка отдела: видно, где стоишь, и куда идти дальше.
+  // В чилауте её нет — иначе пол под зеленью уходит в цветную заливку.
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(ROOM - 1, ROOM - 1),
+    new THREE.MeshBasicMaterial({ color: dep.hue, transparent: true,
+                                  opacity: dep.lounge ? 0 : 0.04 }));
+  pad.rotation.x = -Math.PI / 2;
+  pad.position.set(x0, y + 0.05, z0);
+  scene.add(pad);
+
+  // В чилауте свет нейтральный: зелёный остаётся только у дерева и чешуи.
+  const lamp = new THREE.PointLight(dep.lounge ? 0xf0efe9 : dep.hue,
+                                    dep.lounge ? 18 : 46, ROOM * 1.6, 2);
+  lamp.position.set(x0, y + H - 1.2, z0);
+  scene.add(lamp);
+  if (dep.lounge) {
+    // Тёплый контровой свет от кухни: стены получают перепад тона,
+    // иначе бетон читается ровной заливкой.
+    const warm = new THREE.PointLight(0xffd9a8, 16, ROOM, 2);
+    warm.position.set(x0 - HALF + 2.4, y + 2.6, z0 - 2.4);
+    scene.add(warm);
+  }
+
+  // Терминал отдела — цель для клика. В чилауте центр занят деревом.
+  const kx = dep.lounge ? x0 + 4.6 : x0, kz = dep.lounge ? z0 + 4.6 : z0;
+  const kiosk = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.35, 2),
+    new THREE.MeshStandardMaterial({ color: 0x0d1519, roughness: 0.5, metalness: 0.6 }));
+  kiosk.position.set(kx, y + 1.1, kz);
+  const legs = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 1.4),
+    new THREE.MeshStandardMaterial({ color: 0x090d10 }));
+  legs.position.set(kx, y + 0.55, kz);
+  // Экран терминала — тёмное стекло с подсветкой, а не плоская заливка.
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.7),
+    new THREE.MeshStandardMaterial({ color: 0x0a1418, roughness: 0.12, metalness: 0.8,
+                                     envMapIntensity: 1.4, side: THREE.DoubleSide,
+                                     emissive: new THREE.Color(dep.hue),
+                                     emissiveIntensity: 0.14 }));
+  screen.position.set(kx, y + 2.1, kz);
+  screen.rotation.x = -0.35;
+  scene.add(kiosk, legs, screen);
+  colliders.push(new THREE.Box3().setFromObject(legs));
+
+  // Плашка уже проёма (DOOR): иначе её края срезают боковые стены и
+  // длинные названия читаются обрезанными из коридора.
+  const tag = label(dep.name, dep.hue);
+  const tagK = (DOOR - 0.6) / 8;
+  tag.scale.set(tagK, tagK, 1);
+  tag.position.set(x0, y + 3.9, z0 + doorSide * (HALF - 0.35));
+  tag.rotation.y = doorSide === 1 ? 0 : Math.PI;
+  scene.add(tag);
+
+  if (dep.id === 'director') dashboard(dep, x0, y, z0);
+  if (dep.lounge) lounge(dep, x0, y, z0);
+
+  // Портал в модуль: светящаяся рамка на глухой стене — видно, куда ведёт комната.
+  if (dep.mod) {
+    const portal = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.4),
+      new THREE.MeshBasicMaterial({ color: dep.hue, transparent: true, opacity: 0.12 }));
+    portal.position.set(x0, y + 2.1, z0 - doorSide * (HALF - 0.3));
+    portal.rotation.y = doorSide === 1 ? Math.PI : 0;
+    const frame = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(6, 3.4)),
+      new THREE.LineBasicMaterial({ color: dep.hue }));
+    frame.position.copy(portal.position);
+    frame.rotation.copy(portal.rotation);
+    const sign = label(dep.mod.name, dep.hue);
+    sign.scale.set(0.62, 0.62, 1);
+    sign.position.set(x0, y + 4.3, z0 - doorSide * (HALF - 0.32));
+    sign.rotation.y = portal.rotation.y;
+    scene.add(portal, frame, sign);
+    for (const o of [portal, sign]) { o.userData.dep = dep; clickable.push(o); }
+  }
+
+  for (const o of [kiosk, screen, tag]) { o.userData.dep = dep; clickable.push(o); }
+}
+DEPARTMENTS.forEach(room);
+
+/* Лестница: пандус со ступенями. Ступени — только декор, ходьба идёт
+   по аналитической высоте (groundAt), поэтому подъём всегда плавный. */
+const STEPS = 18;
+for (let i = 0; i < STEPS; i++) {
+  const t = i / STEPS;
+  const step = new THREE.Mesh(
+    new THREE.BoxGeometry((RAMP_X1 - RAMP_X0) / STEPS + 0.05, 0.35, RAMP_HALF * 2),
+    new THREE.MeshStandardMaterial({ color: 0x101a1f, roughness: 0.6, metalness: 0.35,
+                                     emissive: 0x00ffcc, emissiveIntensity: 0.06 }));
+  step.position.set(RAMP_X1 - (i + 0.5) * (RAMP_X1 - RAMP_X0) / STEPS,
+                    t * LIFT - 0.17, 0);
+  scene.add(step);
+}
+for (const z of [-RAMP_HALF, RAMP_HALF]) {
+  const rail = new THREE.Mesh(
+    new THREE.BoxGeometry(RAMP_X1 - RAMP_X0, 0.12, 0.12),
+    new THREE.MeshBasicMaterial({ color: 0x00ffcc }));
+  rail.position.set((RAMP_X0 + RAMP_X1) / 2, LIFT / 2 + 1.1, z);
+  rail.rotation.z = Math.atan2(LIFT, RAMP_X1 - RAMP_X0);
+  scene.add(rail);
+}
+const stairTag = label('ЛЕСТНИЦА · 2 ЭТАЖ', 0x00ffcc);
+stairTag.scale.set(0.7, 0.7, 1);
+stairTag.position.set(RAMP_X1 - 1, 3.4, -RAMP_HALF - 0.1);
+stairTag.rotation.y = -0.5;
+scene.add(stairTag);
+
+// Коридорные лампы на каждом этаже.
+for (const y of [0, LIFT]) {
+  for (const x of [-COL, 0, COL, RAMP_X0]) {
+    const l = new THREE.PointLight(0x9fdcf0, 48, 36, 2);
+    l.position.set(x, y + H - 1.5, 0);
+    scene.add(l);
+  }
+}
+
+/* Периметр: снизу полный, сверху с обрывом у лестничного проёма. */
+for (const y of [0, LIFT]) {
+  const x1 = y === 0 ? PLAN_X1 : RAMP_X0;
+  wall((PLAN_X0 + x1) / 2, y, -PLAN_Z, x1 - PLAN_X0, WALL);
+  wall((PLAN_X0 + x1) / 2, y, PLAN_Z, x1 - PLAN_X0, WALL);
+  wall(PLAN_X0, y, 0, WALL, PLAN_Z * 2);
+  wall(x1, y, 0, WALL, PLAN_Z * 2);
+}
+// Ограждение проёма второго этажа: пройти можно только через лестницу.
+for (const sgn of [-1, 1]) {
+  const len = PLAN_Z - RAMP_HALF;
+  wall(RAMP_X0, LIFT, sgn * (RAMP_HALF + len / 2), WALL, len);
+}
+
+/* ---------- Ходьба от первого лица с переходом между этажами ---------- */
+const EYE = 1.7, RADIUS = 0.55;
+const controls = new PointerLockControls(camera, renderer.domElement);
+let levelY = 0;
+camera.position.set(0, EYE, 0);
+
+/** Высота пола под точкой: на лестнице интерполируется, иначе — текущий этаж. */
+function groundAt(x, z) {
+  if (x > RAMP_X0 - 0.3 && x < RAMP_X1 + 0.3 && Math.abs(z) < RAMP_HALF + 0.3) {
+    const t = THREE.MathUtils.clamp((RAMP_X1 - x) / (RAMP_X1 - RAMP_X0), 0, 1);
+    return t * LIFT;
+  }
+  return levelY;
+}
+
+const keys = new Set();
+addEventListener('keydown', e => {
+  keys.add(e.code);
+  if (e.code === 'Escape') closeCard();
+  // E — быстрый вход в модуль отдела, без открытия карточки.
+  if (e.code === 'KeyE' && hovered?.mod && controls.isLocked) {
+    location.href = ROOT + hovered.mod.path;
+  }
+});
+addEventListener('keyup', e => keys.delete(e.code));
+
+const startEl = document.getElementById('start');
+document.getElementById('go').onclick = () => controls.lock();
+controls.addEventListener('lock', () => { startEl.style.display = 'none'; });
+controls.addEventListener('unlock', () => {
+  if (card.style.display !== 'block') startEl.style.display = 'flex';
+});
+
+function blocked(x, z, baseY) {
+  const box = new THREE.Box3(
+    new THREE.Vector3(x - RADIUS, baseY + 0.4, z - RADIUS),
+    new THREE.Vector3(x + RADIUS, baseY + H * 0.7, z + RADIUS));
+  return colliders.some(c => c.intersectsBox(box));
+}
+
+const floorTag = document.getElementById('floor-tag');
+function move(dt) {
+  const speed = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 12 : 5.5) * dt;
+  let f = 0, s = 0;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) f += 1;
+  if (keys.has('KeyS') || keys.has('ArrowDown')) f -= 1;
+  if (keys.has('KeyD') || keys.has('ArrowRight')) s += 1;
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) s -= 1;
+
+  const p = camera.position;
+  if (f || s) {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    dir.y = 0; dir.normalize();
+    const right = new THREE.Vector3().crossVectors(camera.up, dir).normalize().negate();
+    const step = dir.multiplyScalar(f).add(right.multiplyScalar(s)).normalize().multiplyScalar(speed);
+
+    // Оси проверяем раздельно — иначе игрок «залипает» в углах.
+    const base = groundAt(p.x, p.z);
+    if (!blocked(p.x + step.x, p.z, base)) p.x += step.x;
+    if (!blocked(p.x, p.z + step.z, base)) p.z += step.z;
+  }
+
+  const g = groundAt(p.x, p.z);
+  // На лестнице этаж определяется пройденной половиной подъёма.
+  if (g !== levelY) levelY = g > LIFT / 2 ? LIFT : 0;
+  p.y = g + EYE;
+  floorTag.innerHTML = `<b>${g > LIFT / 2 ? 2 : 1}</b>ЭТАЖ`;
+}
+
+/* ---------- Реактивные стены: цвет отдела разгорается на подходе ---------- */
+function react() {
+  const p = camera.position;
+  for (const m of reactive) {
+    const d = m.position.distanceTo(p);
+    const k = THREE.MathUtils.clamp((REACT_FAR - d) / (REACT_FAR - REACT_NEAR), 0, 1);
+    // Мягко, чтобы бетон оставался бетоном: подсветка добавляется в тон,
+    // а не заливает стену ровным цветом.
+    m.material.emissiveIntensity = 0.16 * k * k;
+    m.material.color.setHex(0x2a3238).lerp(m.material.emissive, 0.1 * k);
+  }
+}
+
+/* ---------- Наведение и клик ---------- */
+const ray = new THREE.Raycaster();
+const centre = new THREE.Vector2(0, 0);
+const lookEl = document.getElementById('look');
+let hovered = null;
+
+let hoveredDeck = false;
+
+function pick() {
+  ray.setFromCamera(centre, camera);
+  const hit = ray.intersectObjects(clickable, false).find(h => h.distance < 14);
+  hovered = hit ? hit.object.userData.dep : null;
+  hoveredDeck = !!hit?.object.userData.deck;
+  lookEl.textContent = hovered
+    ? (hoveredDeck ? `ПУЛЬТ — ЛКМ ${musicOn ? 'выключить' : 'включить'} музыку`
+                   : `${hovered.name} — ЛКМ данные`) +
+      (hovered.mod ? ` · E → ${hovered.mod.name}` : '')
+    : '';
+}
+addEventListener('mousedown', e => {
+  if (e.button !== 0 || !hovered || !controls.isLocked) return;
+  if (hoveredDeck) toggleMusic(); else openCard(hovered);
+});
+
+/* ---------- Карточка отдела ---------- */
+const card = document.getElementById('card');
+const openEl = document.getElementById('c-open');
+function openCard(dep) {
+  document.getElementById('c-title').textContent = dep.name;
+  document.getElementById('c-sub').textContent = dep.sub;
+  document.getElementById('c-note').textContent = dep.note ?? '';
+  if (dep.mod) {
+    openEl.hidden = false;
+    openEl.href = ROOT + dep.mod.path;
+    openEl.textContent = dep.mod.name;
+  } else {
+    openEl.hidden = true;
+  }
+  document.getElementById('c-rows').innerHTML = dep.rows.map(([k, v]) => {
+    const [val, cls] = Array.isArray(v) ? v : [v, ''];
+    return `<tr><td>${k}</td><td class="${cls}">${val}</td></tr>`;
+  }).join('');
+  card.style.display = 'block';
+  controls.unlock();
+}
+window.closeCard = () => {
+  if (card.style.display !== 'block') return;
+  card.style.display = 'none';
+  controls.lock(); // возвращаем в дом, а не на стартовый экран
+};
+
+/* ---------- Живые данные радара, если экспорт лежит рядом ---------- */
+fetch('leads.json').then(r => r.ok ? r.json() : null).then(leads => {
+  if (!Array.isArray(leads)) return;
+  const hot = leads.filter(l => l.intent === 'HOT').length;
+  const sales = DEPARTMENTS.find(d => d.id === 'sales');
+  sales.rows[0][1] = leads.length;
+  sales.rows[1][1] = [String(hot), hot ? 'good' : ''];
+  document.getElementById('stat').textContent =
+    `отделов: ${DEPARTMENTS.filter(d => !d.lounge).length} · чилаут: 1 · этажей: 2 · ` +
+    `лидов из радара: ${leads.length}`;
+  if (card.style.display === 'block' &&
+      document.getElementById('c-title').textContent === sales.name) openCard(sales);
+}).catch(() => {});
+
+/* ---------- Кадр ---------- */
+const clock = new THREE.Clock();
+const clockEl = document.getElementById('clock');
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (controls.isLocked) { move(dt); pick(); } else { lookEl.textContent = ''; }
+  react();
+  const t = clock.elapsedTime;
+  for (const fn of animated) fn(t);
+  clockEl.textContent = new Date().toLocaleTimeString('ru-RU');
+  composer.render();
+}
+animate();
+
+// Отладочная ручка: позволяет проверить планировку и переходы между этажами
+// из консоли, не проходя дом руками.
+window.house = { scene, camera, controls, DEPARTMENTS, reactive, teleport(x, z, y = 0) {
+  levelY = y; camera.position.set(x, y + EYE, z);
+} };
+</script>
+</body>
+</html>
