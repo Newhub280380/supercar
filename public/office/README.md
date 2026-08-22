@@ -39,7 +39,7 @@ npm run dev
 
 ## Что править под себя
 
-* номер WhatsApp: `BRAND.whatsapp` в `shared/data.js` (сейчас заглушка `77000000000`);
+* номер WhatsApp: `BRAND.whatsapp` в `shared/data.js` (формат без `+` и пробелов);
 * цены, остатки и линейка: `PRODUCTS`;
 * показатели дашборда: `STATS`;
 * скрипты и возражения: `SCRIPTS`, `OBJECTIONS`.
