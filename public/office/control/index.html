@@ -52,7 +52,7 @@
   <section class="card" id="leads">
     <h2>ЛИДЫ РАДАРА</h2>
     <div id="leads-body" class="dim">файл leads.json не найден рядом со страницей — запустите
-      <span class="mono">pcagent --radar radar.json --out web/control/leads.json</span></div>
+      <span class="mono">pcagent --radar radar.json --out public/office/control/leads.json</span></div>
   </section>
 
   <section class="card" style="margin:18px 0 20px">
@@ -142,7 +142,11 @@ document.getElementById('fin').innerHTML = `
   <tr><td>Сотрудников / на смене</td><td class="num">${STATS.team.people} / ${STATS.team.on_shift}</td></tr>
   <tr><td>Задач в работе / просрочено</td><td class="num">${STATS.team.tasks} / <span class="bad">${STATS.team.overdue}</span></td></tr>`;
 
-/* ---------- Лиды радара ---------- */
+/* ---------- Лиды радара. Экспорт радара — чужие строки из профилей,
+   в разметку они попадают только экранированными. ---------- */
+const esc = v => String(v).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
 fetch('leads.json').then(r => r.ok ? r.json() : null).then(leads => {
   if (!Array.isArray(leads) || !leads.length) return;
   const hot = leads.filter(l => l.intent === 'HOT');
@@ -151,9 +155,9 @@ fetch('leads.json').then(r => r.ok ? r.json() : null).then(leads => {
      <table class="data">
        <tr><th>Название</th><th>Телефон</th><th>Город</th><th class="num">Интент</th></tr>
        ${leads.slice(0, 25).map(l => `<tr>
-         <td>${l.name ?? '—'}</td><td class="mono">${(l.phones ?? [l.phone]).filter(Boolean).join(', ') || '—'}</td>
-         <td>${l.city ?? '—'}</td>
-         <td class="num ${l.intent === 'HOT' ? 'good' : 'dim'}">${l.intent ?? '—'}</td></tr>`).join('')}
+         <td>${esc(l.name ?? '—')}</td><td class="mono">${esc((l.phones ?? [l.phone]).filter(Boolean).join(', ') || '—')}</td>
+         <td>${esc(l.city ?? '—')}</td>
+         <td class="num ${l.intent === 'HOT' ? 'good' : 'dim'}">${esc(l.intent ?? '—')}</td></tr>`).join('')}
      </table>`;
   document.getElementById('src').textContent =
     `источник: shared/data.js · лидов из радара: ${leads.length}`;
