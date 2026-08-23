@@ -20,6 +20,7 @@ import {
   usePasswordVisibility,
 } from "@/components/auth/form-fields";
 import { Mail, Lock } from "lucide-react";
+import { homePathForRole } from "@/lib/auth/constants";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -31,7 +32,7 @@ function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/";
+  const redirect = searchParams.get("redirect");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -41,10 +42,10 @@ function LoginForm() {
     const result = await login(email, password);
     setLoading(false);
 
-    if (result.error) {
-      setError(result.error);
+    if (result.error || !result.user) {
+      setError(result.error ?? "Login failed");
     } else {
-      router.push(redirect);
+      router.replace(redirect ?? homePathForRole(result.user.role));
     }
   }
 

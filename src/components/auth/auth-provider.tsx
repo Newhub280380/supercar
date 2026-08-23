@@ -22,7 +22,10 @@ interface UserData {
 interface AuthContextValue {
   user: UserData | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ error?: string }>;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ error?: string; user?: UserData }>;
   register: (
     email: string,
     password: string,
@@ -39,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const initRef = useRef<Promise<void> | null>(null);
 
-  const fetchUser = useCallback(async () => {
+  const loadUser = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
@@ -56,8 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Обновление держим здесь, чтобы после смены роли сайдбар не показывал
+  // личность прошлого пользователя.
+  const refreshUser = useCallback(async () => {
+    const data = await loadUser();
+    setUser(data);
+    return data;
+  }, [loadUser]);
+
   if (initRef.current == null) {
-    initRef.current = fetchUser().then((data) => {
+    initRef.current = loadUser().then((data) => {
       setUser(data);
       setLoading(false);
     });
@@ -73,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json().catch(() => null);
       if (res.ok && data) {
         setUser(data.user);
-        return {};
+        return { user: data.user as UserData };
       }
       return { error: data?.error || "Login failed" };
     } catch (err) {
@@ -120,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext
-      value={{ user, loading, login, register, logout, refreshUser: fetchUser }}
+      value={{ user, loading, login, register, logout, refreshUser }}
     >
       {children}
     </AuthContext>

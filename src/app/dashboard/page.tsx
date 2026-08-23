@@ -15,6 +15,7 @@ import {
   FileDown,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,66 @@ function getMaxValue(data: Array<{ value: number }>) {
   return Math.max(...data.map((d) => d.value));
 }
 
+interface HouseMetrics {
+  clients: { total: number; newThisMonth: number };
+  appointments: { total: number; upcoming: number; completed: number };
+  revenue: { thisMonth: number; prevMonth: number; avgTicket: number };
+}
+
+const tenge = (value: number) => `${value.toLocaleString("ru-RU")} ₸`;
+
+function liveMetricCards(m: HouseMetrics) {
+  const growth = m.revenue.prevMonth
+    ? Math.round((m.revenue.thisMonth / m.revenue.prevMonth) * 100 - 100)
+    : null;
+  return [
+    {
+      label: "Записей впереди",
+      value: String(m.appointments.upcoming),
+      change: null,
+      icon: "calendar",
+    },
+    {
+      label: "Новых клиентов за месяц",
+      value: String(m.clients.newThisMonth),
+      change: null,
+      icon: "userPlus",
+    },
+    {
+      label: "Приход за месяц",
+      value: tenge(m.revenue.thisMonth),
+      change: growth,
+      icon: "trendingUp",
+    },
+    {
+      label: "Средний чек",
+      value: tenge(m.revenue.avgTicket),
+      change: null,
+      icon: "star",
+    },
+  ];
+}
+
 export default function DashboardPage() {
+  const [metrics, setMetrics] = useState<HouseMetrics | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/house/metrics")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: HouseMetrics | null) => {
+        if (!cancelled && data) setMetrics(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const metricCards = metrics
+    ? liveMetricCards(metrics)
+    : dashboardMetrics.map((metric) => ({ ...metric, change: null }));
+
   const todayAppointments = appointmentsData.filter(
     (a) => a.date === toIsoDate(),
   );
@@ -107,7 +167,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {dashboardMetrics.map((metric, i) => {
+        {metricCards.map((metric, i) => {
           const Icon = METRIC_ICONS[metric.icon] || Calendar;
           return (
             <Card
@@ -120,10 +180,12 @@ export default function DashboardPage() {
                   <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
                     <Icon className="text-primary size-5" />
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                    <ArrowUpRight className="size-3" />
-                    {metric.change}%
-                  </div>
+                  {metric.change !== null && (
+                    <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                      <ArrowUpRight className="size-3" />
+                      {metric.change}%
+                    </div>
+                  )}
                 </div>
                 <div className="mt-3">
                   <div className="text-2xl font-bold">{metric.value}</div>

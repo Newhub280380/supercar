@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, User, Shield } from "lucide-react";
+import { useAuth } from "@/components/auth/auth-provider";
+import { homePathForRole } from "@/lib/auth/constants";
 import type { Role } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +43,7 @@ export default function RoleSelectionPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { refreshUser } = useAuth();
 
   async function handleSelectRole() {
     if (!selectedRole) {
@@ -61,13 +64,8 @@ export default function RoleSelectionPage() {
       const data = await res.json();
 
       if (res.ok) {
-        if (selectedRole === "cosmetologist") {
-          router.push("/dashboard");
-        } else if (selectedRole === "admin") {
-          router.push("/dashboard");
-        } else {
-          router.push("/profile");
-        }
+        await refreshUser();
+        router.replace(homePathForRole(selectedRole));
       } else {
         setError(data.error || "Failed to set role");
       }
