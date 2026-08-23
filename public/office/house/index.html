@@ -126,8 +126,8 @@ addEventListener('appinstalled', () => { installBtn.hidden = true; });
 
 <script type="importmap">
 { "imports": {
-  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  "three": "../vendor/three@0.160.0/build/three.module.js",
+  "three/addons/": "../vendor/three@0.160.0/examples/jsm/"
 } }
 </script>
 
@@ -402,7 +402,7 @@ const MIST_TEX = (() => {
    себя и обходится на 360° без «доворота» к камере. Геометрия сжата Draco,
    текстуры — webp, поэтому дерево весит мегабайты, а не десятки. */
 const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/gltf/');
+dracoLoader.setDecoderPath('../vendor/three@0.160.0/examples/jsm/libs/draco/gltf/');
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
