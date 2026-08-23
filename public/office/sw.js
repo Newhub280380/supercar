@@ -13,7 +13,10 @@ self.addEventListener('activate', e => e.waitUntil(
 
 self.addEventListener('fetch', e => {
   const { request } = e;
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Данные компании не кешируем: они приватные и меняются каждый день.
+  if (url.pathname.startsWith('/api/')) return;
 
   e.respondWith(
     fetch(request)

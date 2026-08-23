@@ -959,9 +959,74 @@ window.closeCard = () => {
   controls.lock(); // возвращаем в дом, а не на стартовый экран
 };
 
+/* ---------- Живые показатели компании из CRM ----------
+   Дом раздаётся и как статика внутри приложения (там ручка отвечает), и как
+   отдельный сайт (там её нет) — во втором случае остаются демо-цифры. */
+const dept = id => DEPARTMENTS.find(d => d.id === id);
+let liveMetrics = false;
+
+function applyLiveMetrics(m) {
+  liveMetrics = true;
+  const pct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '—');
+  const growth = m.revenue.prevMonth
+    ? Math.round(m.revenue.thisMonth / m.revenue.prevMonth * 100 - 100) + '%'
+    : '—';
+  const inWork = m.appointments.pending + m.appointments.confirmed;
+
+  dept('reception').rows = [
+    ['Клиентов в базе', m.clients.total],
+    ['Новых за месяц', m.clients.newThisMonth],
+    ['Записей впереди', m.appointments.upcoming],
+    ['Отмен', m.appointments.cancelled]];
+  dept('sales').rows = [
+    ['Клиентов', m.clients.total],
+    ['Записей всего', m.appointments.total],
+    ['Проведено', m.appointments.completed],
+    ['Конверсия в проведённые',
+     pct(m.appointments.completed, m.appointments.total)]];
+  dept('sales').note = 'цифры считаются из вашей CRM';
+  dept('marketing').rows = [
+    ['Email-кампаний', m.marketing.emailCampaigns],
+    ['SMS-кампаний', m.marketing.smsCampaigns],
+    ['UTM-кампаний', m.marketing.utmCampaigns],
+    ['Подписчиков', m.marketing.subscribers]];
+  dept('warehouse').rows = [
+    ['Услуг в прайсе', m.services.total],
+    ['Активных', m.services.active],
+    ['Средний чек', money(m.revenue.avgTicket)]];
+  dept('warehouse').note = 'товарные остатки появятся, когда подключим склад';
+  dept('accounting').rows = [
+    ['Приход за месяц', money(m.revenue.thisMonth)],
+    ['Прошлый месяц', money(m.revenue.prevMonth)],
+    ['Средний чек', money(m.revenue.avgTicket)],
+    ['Проведено записей', m.appointments.completed]];
+  dept('admin').rows = [
+    ['Записей в работе', inWork],
+    ['Ждут подтверждения', m.appointments.pending],
+    ['Просрочено', [String(m.appointments.overdue),
+                    m.appointments.overdue ? 'bad' : 'good']],
+    ['Услуг активно', m.services.active]];
+  dept('director').rows = [
+    ['Выручка за месяц', [money(m.revenue.thisMonth), 'good']],
+    ['Рост к прошлому месяцу', growth],
+    ['Средний чек', money(m.revenue.avgTicket)],
+    ['Клиентов в базе', m.clients.total]];
+
+  document.getElementById('stat').textContent =
+    'отделов: 7 · чилаут: 1 · этажей: 2 · данные из CRM';
+  const open = DEPARTMENTS.find(
+    d => d.name === document.getElementById('c-title').textContent);
+  if (card.style.display === 'block' && open) openCard(open);
+}
+
+fetch('/api/house/metrics', { credentials: 'same-origin' })
+  .then(r => r.ok ? r.json() : null)
+  .then(m => { if (m && m.clients) applyLiveMetrics(m); })
+  .catch(() => {});
+
 /* ---------- Живые данные радара, если экспорт лежит рядом ---------- */
 fetch('leads.json').then(r => r.ok ? r.json() : null).then(leads => {
-  if (!Array.isArray(leads)) return;
+  if (!Array.isArray(leads) || liveMetrics) return;
   const hot = leads.filter(l => l.intent === 'HOT').length;
   const sales = DEPARTMENTS.find(d => d.id === 'sales');
   sales.rows[0][1] = leads.length;

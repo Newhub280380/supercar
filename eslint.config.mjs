@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Сторонний рантайм three.js, лежит у нас только чтобы дом не зависел от CDN.
+    "public/office/vendor/**",
   ]),
   {
     rules: {
