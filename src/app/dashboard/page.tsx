@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Star,
   ArrowUpRight,
+  ArrowDownRight,
   Clock,
   Bell,
   Plus,
@@ -181,8 +182,19 @@ export default function DashboardPage() {
                     <Icon className="text-primary size-5" />
                   </div>
                   {metric.change !== null && (
-                    <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                      <ArrowUpRight className="size-3" />
+                    <div
+                      className={cn(
+                        "flex items-center gap-1 text-xs",
+                        metric.change < 0
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-green-600 dark:text-green-400",
+                      )}
+                    >
+                      {metric.change < 0 ? (
+                        <ArrowDownRight className="size-3" />
+                      ) : (
+                        <ArrowUpRight className="size-3" />
+                      )}
                       {metric.change}%
                     </div>
                   )}
