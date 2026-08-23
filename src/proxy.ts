@@ -17,6 +17,11 @@ const API_PROTECTED_PREFIXES = [
   "/api/export-pdf",
 ];
 
+// The role picker is the one "auth" page that needs a session: registration signs the
+// user in with the default role, then sends them here to choose the real one.
+const ROLE_SELECTION_PATH = "/auth/role-selection";
+const DEFAULT_ROLE = "client";
+
 const ROLE_PATH_MAP: Record<string, string[]> = {
   "/dashboard": ["cosmetologist", "admin"],
 };
@@ -116,6 +121,13 @@ async function handleAuthPage(request: NextRequest) {
 
   const session = await verifyToken(token);
   if (!session) return nextWithSanitizedHeaders(request);
+
+  if (
+    request.nextUrl.pathname.startsWith(ROLE_SELECTION_PATH) &&
+    session.role === DEFAULT_ROLE
+  ) {
+    return nextWithSanitizedHeaders(request);
+  }
 
   return NextResponse.redirect(new URL("/", request.url));
 }

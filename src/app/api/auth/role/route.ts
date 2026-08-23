@@ -4,6 +4,8 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { withSession } from "@/lib/api/handlers";
 import { badRequest, notFound } from "@/lib/api/response";
+import { setAuthCookie } from "@/lib/auth/cookies";
+import { signToken } from "@/lib/auth/jwt";
 import { toAuthUser } from "@/lib/auth/serialize";
 
 const SELF_SELECTABLE_ROLES = ["cosmetologist", "client"];
@@ -35,6 +37,17 @@ export const PATCH = withSession(
       .set({ role, updatedAt: new Date() })
       .where(eq(users.id, session.sub))
       .returning();
+
+    // The session cookie still carries the pre-selection role, so role-gated pages
+    // would stay closed until the next sign-in.
+    await setAuthCookie(
+      await signToken({
+        userId: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        sessionId: session.jti,
+      }),
+    );
 
     return NextResponse.json(toAuthUser(updatedUser));
   },
