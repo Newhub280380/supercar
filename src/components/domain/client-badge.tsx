@@ -13,7 +13,7 @@ const SKIN_TYPE_COLORS: Record<string, string> = {
   dry: "bg-amber-200/60",
   oily: "bg-sky-200/60",
   combination: "bg-purple-200/60",
-  sensitive: "bg-rose-200/60",
+  sensitive: "bg-teal-200/60",
   normal: "bg-green-200/60",
 };
 

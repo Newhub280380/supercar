@@ -32,7 +32,7 @@ export function HowItWorks() {
           ].map((item, idx) => (
             <div key={idx} className="relative rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-3">
-                <CheckCircle2 className="size-5 text-rose-600" />
+                <CheckCircle2 className="size-5 text-teal-600" />
                 <h3 className="font-heading text-lg font-semibold">{item.title}</h3>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>

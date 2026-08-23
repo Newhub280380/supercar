@@ -4,9 +4,9 @@ import { Footer } from "@/components/landing/footer";
 import { Pricing } from "@/components/landing/pricing";
 
 export const metadata: Metadata = {
-  title: "Тарифы — CosmAI",
+  title: "Тарифы — Management House",
   description:
-    "Выберите подходящий тариф CosmAI. Бесплатный план, Pro для косметологов и Business для салонов. Прозрачные цены без скрытых платежей.",
+    "Выберите подходящий тариф Management House. Бесплатный план, Pro для небольших команд и Business для компаний. Прозрачные цены без скрытых платежей.",
 };
 
 export default function PricingPage() {

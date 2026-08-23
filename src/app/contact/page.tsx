@@ -5,9 +5,9 @@ import { SectionWrapper } from "@/components/landing/section-wrapper";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
-  title: "Контакты — CosmAI",
+  title: "Контакты — Management House",
   description:
-    "Свяжитесь с командой CosmAI. Ответы на вопросы, демо-версия платформы, партнёрские предложения.",
+    "Свяжитесь с командой Management House. Ответы на вопросы, демо-версия платформы, партнёрские предложения.",
 };
 
 export default function ContactPage() {

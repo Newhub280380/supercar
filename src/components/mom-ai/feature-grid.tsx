@@ -26,7 +26,7 @@ export function FeatureGrid({ features }: FeatureGridProps) {
             key={index}
             className="rounded-xl border border-border bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
           >
-            <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+            <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
               <Icon className="size-5" />
             </div>
             <h3 className="font-heading text-lg font-semibold">{feature.title}</h3>

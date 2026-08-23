@@ -190,7 +190,7 @@ export default function DashboardPage() {
                     className={cn(
                       "flex size-8 items-center justify-center rounded-lg",
                       r.type === "birthday"
-                        ? "bg-pink-100 text-pink-600 dark:bg-pink-950/40 dark:text-pink-400"
+                        ? "bg-cyan-100 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400"
                         : r.type === "followup"
                           ? "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
                           : "bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400",

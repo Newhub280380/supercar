@@ -6,7 +6,7 @@ export function MomFooter() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-pink-600 text-white text-[10px] font-bold">
+            <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-[10px] font-bold">
               MA
             </div>
             <span className="font-heading text-sm font-semibold">Mom AI Assistant</span>
