@@ -38,9 +38,9 @@ const platformStyles: Record<
   { border: string; headerBg: string; label: string }
 > = {
   instagram: {
-    border: "border-pink-200 dark:border-pink-900/30",
+    border: "border-cyan-200 dark:border-cyan-900/30",
     headerBg:
-      "bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/20 dark:to-purple-950/20",
+      "bg-gradient-to-r from-cyan-50 to-purple-50 dark:from-cyan-950/20 dark:to-purple-950/20",
     label: "Instagram",
   },
   telegram: {

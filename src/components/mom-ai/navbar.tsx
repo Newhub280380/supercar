@@ -7,7 +7,7 @@ export function MomNavbar() {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/mom-ai" className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-pink-600 text-white text-xs font-bold">
+          <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-xs font-bold">
             MA
           </div>
           <span className="font-heading text-lg font-semibold">Mom AI</span>

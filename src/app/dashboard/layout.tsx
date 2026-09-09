@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Calendar,
@@ -40,6 +40,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -48,6 +49,8 @@ export default function DashboardLayout({
   const handleLogout = async () => {
     const { error } = await logout();
     setLogoutError(error ?? null);
+    // Without this the cleared session keeps rendering the cached dashboard.
+    if (!error) router.replace("/auth/login");
   };
 
   const initials = (user?.name || "C")

@@ -11,6 +11,11 @@ export const VALID_ROLES = ["admin", "cosmetologist", "client"] as const;
 /** Roles allowed to read and manage business data (campaigns, UTM, conversions). */
 export const MANAGER_ROLES = ["cosmetologist", "admin"] as const;
 
+/** Где пользователь начинает работу сразу после входа или выбора роли. */
+export function homePathForRole(role: string): string {
+  return role === "client" ? "/profile" : "/dashboard";
+}
+
 export const ROLE_GUARDED_PATHS: Record<string, string[]> = {
   "/dashboard": ["cosmetologist", "admin"],
   "/profile": ["admin", "cosmetologist", "client"],

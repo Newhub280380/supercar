@@ -33,7 +33,7 @@ export function Testimonials() {
         <div className="grid gap-6 md:grid-cols-3">
           {data?.testimonials?.map((t, idx) => (
             <div key={idx} className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <Quote className="mb-4 size-6 text-rose-500" />
+              <Quote className="mb-4 size-6 text-teal-500" />
               <p className="text-sm leading-relaxed">{t.text}</p>
               <p className="mt-4 text-xs font-medium text-muted-foreground">— {t.name}</p>
             </div>

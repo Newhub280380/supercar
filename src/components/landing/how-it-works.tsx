@@ -11,7 +11,7 @@ const steps = [
     icon: UserPlus,
     step: 1,
     title: "Регистрация",
-    description: "Создайте аккаунт за 2 минуты. Выберите роль: косметолог или салон.",
+    description: "Создайте аккаунт за 2 минуты. Выберите роль: владелец или сотрудник.",
   },
   {
     icon: Settings,
@@ -43,7 +43,7 @@ export function HowItWorks() {
               Как это работает
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Четыре простых шага до автоматизации вашего косметологического бизнеса
+              Четыре простых шага до автоматизации вашего бизнеса
             </p>
           </div>
         </SectionWrapper>

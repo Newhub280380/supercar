@@ -23,14 +23,16 @@ export function Footer() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-white text-xs font-bold">
-                AI
+              <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-xs font-bold text-primary-foreground">
+                MH
               </div>
-              <span className="font-heading text-lg font-semibold">CosmAI</span>
+              <span className="font-heading text-lg font-semibold tracking-wide">
+                MANAGEMENT HOUSE
+              </span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              AI-платформа для косметологов. Автоматизируйте бизнес с помощью
-              искусственного интеллекта.
+              3D-офис управления компанией: отделы, склад, продажи и маркетинг
+              в одном доме.
             </p>
             <div className="mt-6 flex gap-3">
               <a
@@ -48,7 +50,7 @@ export function Footer() {
                 <Send className="size-4" />
               </a>
               <a
-                href="mailto:hello@cosmai.ru"
+                href="mailto:hello@management-house.app"
                 className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Email"
               >
@@ -103,10 +105,10 @@ export function Footer() {
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="size-4 shrink-0" />
                 <a
-                  href="mailto:hello@cosmai.ru"
+                  href="mailto:hello@management-house.app"
                   className="transition-colors hover:text-foreground"
                 >
-                  hello@cosmai.ru
+                  hello@management-house.app
                 </a>
               </li>
             </ul>
@@ -116,7 +118,7 @@ export function Footer() {
         <div className="mt-12 border-t border-border/60 pt-6">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <p className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} CosmAI. Все права защищены.
+              &copy; {new Date().getFullYear()} Management House. Все права защищены.
             </p>
             <div className="flex gap-4 text-xs text-muted-foreground">
               <a href="#" className="transition-colors hover:text-foreground">

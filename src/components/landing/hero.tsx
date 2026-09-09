@@ -18,26 +18,26 @@ export function Hero() {
         <div className="flex flex-col items-center text-center">
           <Badge variant="secondary" className="mb-6 px-3 py-1 text-xs">
             <Sparkles className="mr-1.5 size-3" />
-            Новая эра косметологии
+            Цифровой офис вашей компании
           </Badge>
 
           <h1 className="max-w-4xl font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            <span className="text-gradient-rose">AI-платформа</span>
+            <span className="text-gradient-rose">MANAGEMENT HOUSE</span>
             <br />
-            <span className="text-foreground">для косметологов</span>
+            <span className="text-foreground">бизнес в трёх измерениях</span>
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-            Управляйте клиентами, записями и маркетингом с помощью искусственного
-            интеллекта. Всё в одном месте — от консультации до аналитики.
+            Двухэтажный 3D-офис вместо скучных таблиц: бухгалтерия, склад,
+            маркетинг, продажи и CRM — каждый отдел в своей комнате.
           </p>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/pricing"
+              href="/office/house/index.html"
               className={cn(buttonVariants({ size: "lg" }), "gap-2")}
             >
-              Попробовать бесплатно
+              Войти в дом
               <ArrowRight className="size-4" />
             </Link>
             <Link

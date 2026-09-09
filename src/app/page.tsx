@@ -9,9 +9,9 @@ import { Footer } from "@/components/landing/footer";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "CosmAI — AI-платформа для косметологов",
+  title: "Management House — 3D-офис управления бизнесом",
   description:
-    "Управляйте клиентами, записями и маркетингом с помощью искусственного интеллекта. CRM, AI-консультант, SMM-генератор, рассылки и аналитика.",
+    "Двухэтажный 3D-офис компании: CRM, продажи, склад, маркетинг, бухгалтерия и аналитика в одном месте.",
 };
 
 export default function Home() {

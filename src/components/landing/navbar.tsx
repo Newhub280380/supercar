@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { href: "/", label: "Главная" },
   { href: "/#features", label: "Возможности" },
+  { href: "/office/house/index.html", label: "3D-офис" },
   { href: "/pricing", label: "Тарифы" },
   { href: "/about", label: "О нас" },
   { href: "/contact", label: "Контакты" },
@@ -22,10 +23,12 @@ export function Navbar() {
     <header className="sticky top-0 z-50 glass border-b border-border/60">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-white text-xs font-bold">
-            AI
+          <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-xs font-bold text-primary-foreground">
+            MH
           </div>
-          <span className="font-heading text-lg font-semibold">CosmAI</span>
+          <span className="font-heading text-lg font-semibold tracking-wide">
+            MANAGEMENT HOUSE
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

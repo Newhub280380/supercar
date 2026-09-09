@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    { "source": "/", "destination": "/house/index.html", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/dashboard", "destination": "https://supercar-cyan.vercel.app/dashboard" }
+  ]
+}

@@ -57,7 +57,7 @@ export default function RegisterPage() {
     <Card className="shadow-lg">
       <CardHeader className="text-center">
         <CardTitle className="font-heading text-2xl">Create Account</CardTitle>
-        <CardDescription>Join the AI Cosmetology Platform</CardDescription>
+        <CardDescription>Создайте аккаунт Management House</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
