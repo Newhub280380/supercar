@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Inbox, Search, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/format";
@@ -20,6 +21,13 @@ type Lead = {
   status: string;
   campaign: string | null;
   createdAt: string;
+};
+
+type LeadsResponse = {
+  leads?: Lead[];
+  total?: number;
+  nextCursor?: string | null;
+  error?: string;
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -40,32 +48,38 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [total, setTotal] = useState(0);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/leads")
-      .then(async (res) => {
-        const data: { leads?: Lead[]; error?: string } = await res.json();
-        if (cancelled) return;
-        if (!res.ok) {
-          setError(data.error ?? "Не удалось загрузить лиды");
-        } else {
-          setLeads(data.leads ?? []);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError("Не удалось загрузить лиды");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+  const load = useCallback(async (before?: string | null) => {
+    try {
+      const url = before
+        ? `/api/leads?before=${encodeURIComponent(before)}`
+        : "/api/leads";
+      const res = await fetch(url);
+      const data: LeadsResponse = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Не удалось загрузить лиды");
+        return;
+      }
+      setLeads((prev) =>
+        before ? [...prev, ...(data.leads ?? [])] : (data.leads ?? []),
+      );
+      setTotal(data.total ?? 0);
+      setCursor(data.nextCursor ?? null);
+    } catch {
+      setError("Не удалось загрузить лиды");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     if (!search) return leads;
@@ -90,7 +104,7 @@ export default function LeadsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant="secondary">Всего: {leads.length}</Badge>
+          <Badge variant="secondary">Всего: {total}</Badge>
           {escalated > 0 && (
             <Badge className="bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
               Нужен ответ: {escalated}
@@ -127,6 +141,11 @@ export default function LeadsPage() {
             <CardContent className="flex flex-col gap-3 py-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{lead.name || lead.contact}</span>
+                {lead.name && (
+                  <span className="text-muted-foreground text-sm">
+                    {lead.contact}
+                  </span>
+                )}
                 <Badge variant="secondary">
                   {SOURCE_LABELS[lead.source] ?? lead.source}
                 </Badge>
@@ -163,6 +182,20 @@ export default function LeadsPage() {
           </Card>
         ))}
       </div>
+
+      {cursor && !search && (
+        <Button
+          variant="outline"
+          className="mt-4"
+          disabled={loading}
+          onClick={() => {
+            setLoading(true);
+            void load(cursor);
+          }}
+        >
+          Показать ещё
+        </Button>
+      )}
     </div>
   );
 }
