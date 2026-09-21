@@ -519,3 +519,36 @@ export const abTestsRelations = relations(abTests, ({ one }) => ({
   }),
 }));
 
+export const leadSourceEnum = pgEnum("lead_source", [
+  "whatsapp",
+  "instagram",
+  "telegram",
+  "site",
+  "other",
+]);
+
+export const leadStatusEnum = pgEnum("lead_status", [
+  "new",
+  "in_progress",
+  "qualified",
+  "won",
+  "lost",
+]);
+
+/** Входящие обращения из мессенджеров: сообщение, черновик ответа агента, метка источника. */
+export const leads = pgTable("leads", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  source: leadSourceEnum("source").notNull().default("whatsapp"),
+  contact: text("contact").notNull(),
+  name: text("name"),
+  incoming: text("incoming").notNull(),
+  draft: text("draft"),
+  escalate: boolean("escalate").notNull().default(false),
+  reason: text("reason"),
+  status: leadStatusEnum("status").notNull().default("new"),
+  campaign: text("campaign"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
