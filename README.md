@@ -41,12 +41,12 @@ cp .env.example .env.local
 | `OPENAI_TIMEOUT_MS` | Per-request timeout in ms (default: `30000`) |
 | `LOG_LEVEL`         | Log level: `debug` \| `info` \| `warn` \| `error` (default: `info`) |
 | `JWT_SECRET`        | Secret used to sign auth JWTs        |
+| `LEADS_INGEST_TOKEN` | Shared token for protected `POST /api/leads` ingest |
 
 ### Database Setup
 
 ```bash
-npm run db:generate
-npm run db:push
+npm run db:migrate
 ```
 
 ### Development
