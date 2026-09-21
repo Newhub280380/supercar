@@ -28,6 +28,10 @@ function trimmed(value: unknown, max: number): string | null {
   return isNonEmptyString(value) ? value.trim().slice(0, max) : null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /**
  * Курсорная выдача: `?before=<createdAt ISO>&limit=<n>`, плюс общее число лидов,
  * чтобы счётчик в панели не врал при выборке одной страницы.
@@ -59,11 +63,8 @@ export const GET = withRole(
 
     return NextResponse.json({
       leads: rows,
-      total: totals?.value ?? rows.length,
-      nextCursor:
-        rows.length === limit
-          ? rows[rows.length - 1].createdAt.toISOString()
-          : null,
+      total: totals?.value ?? 0,
+      nextCursor: rows.length === limit ? rows.at(-1)?.createdAt.toISOString() : null,
     });
   },
 );
@@ -78,13 +79,13 @@ export const POST = withRateLimit(
   withErrorHandling("Ошибка приёма лида", async (request: NextRequest) => {
     const token = process.env.LEADS_INGEST_TOKEN;
     if (!token) return unauthorized("Приём лидов не настроен");
-    if (request.headers.get("authorization") !== `Bearer ${token}`) {
+    if (request.headers.get("authorization") !== "Bearer " + token) {
       return unauthorized();
     }
 
     const body: unknown = await request.json().catch(() => null);
-    if (!body || typeof body !== "object") return badRequest("Ожидается JSON");
-    const data = body as Record<string, unknown>;
+    if (!isRecord(body)) return badRequest("Ожидается JSON-объект");
+    const data = body;
 
     const contact = trimmed(data.contact, MAX_LEN.contact);
     const incoming = trimmed(data.incoming, MAX_LEN.text);

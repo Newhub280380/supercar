@@ -12,9 +12,9 @@ import { formatDate } from "@/lib/format";
 type Lead = {
   id: string;
   source: string;
-  contact: string;
+  contact: string | null;
   name: string | null;
-  incoming: string;
+  incoming: string | null;
   draft: string | null;
   escalate: boolean;
   reason: string | null;
@@ -46,6 +46,22 @@ const STATUS_LABELS: Record<string, string> = {
   lost: "Потерян",
 };
 
+function toText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeLead(lead: Lead): Lead {
+  return {
+    ...lead,
+    contact: toText(lead.contact).trim() || null,
+    name: toText(lead.name).trim() || null,
+    incoming: toText(lead.incoming).trim() || null,
+    draft: toText(lead.draft).trim() || null,
+    reason: toText(lead.reason).trim() || null,
+    campaign: toText(lead.campaign).trim() || null,
+  };
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
@@ -65,10 +81,16 @@ export default function LeadsPage() {
         setError(data.error ?? "Не удалось загрузить лиды");
         return;
       }
-      setLeads((prev) =>
-        before ? [...prev, ...(data.leads ?? [])] : (data.leads ?? []),
+      setError(null);
+      const incoming = (data.leads ?? []).map(normalizeLead);
+      setLeads((prev) => (before ? [...prev, ...incoming] : incoming));
+      setTotal((prev) =>
+        typeof data.total === "number" && data.total >= 0
+          ? data.total
+          : before
+            ? prev
+            : incoming.length,
       );
-      setTotal(data.total ?? 0);
       setCursor(data.nextCursor ?? null);
     } catch {
       setError("Не удалось загрузить лиды");
@@ -78,6 +100,7 @@ export default function LeadsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
@@ -86,13 +109,14 @@ export default function LeadsPage() {
     const q = search.toLowerCase();
     return leads.filter(
       (l) =>
-        l.contact.toLowerCase().includes(q) ||
+        (l.contact ?? "").toLowerCase().includes(q) ||
         (l.name ?? "").toLowerCase().includes(q) ||
-        l.incoming.toLowerCase().includes(q),
+        (l.incoming ?? "").toLowerCase().includes(q),
     );
   }, [leads, search]);
 
   const escalated = leads.filter((l) => l.escalate).length;
+  const hasSearch = search.trim().length > 0;
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -126,11 +150,26 @@ export default function LeadsPage() {
       {loading && <p className="text-muted-foreground text-sm">Загрузка…</p>}
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && leads.length === 0 && (!hasSearch || total === 0) && (
         <Card>
           <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-sm">
             <Inbox className="size-6" />
-            Пока нет лидов
+            <p className="font-medium">Лидов пока нет</p>
+            <p className="text-center">
+              Система подключена и готова принимать новые обращения.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading &&
+        !error &&
+        hasSearch &&
+        filtered.length === 0 &&
+        (total > 0 || leads.length > 0) && (
+        <Card>
+          <CardContent className="text-muted-foreground py-8 text-sm">
+            По вашему запросу ничего не найдено.
           </CardContent>
         </Card>
       )}
@@ -140,8 +179,8 @@ export default function LeadsPage() {
           <Card key={lead.id}>
             <CardContent className="flex flex-col gap-3 py-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{lead.name || lead.contact}</span>
-                {lead.name && (
+                <span className="font-medium">{lead.name || lead.contact || "Без имени"}</span>
+                {lead.name && lead.contact && (
                   <span className="text-muted-foreground text-sm">
                     {lead.contact}
                   </span>
@@ -160,7 +199,7 @@ export default function LeadsPage() {
                 </span>
               </div>
 
-              <p className="text-sm">{lead.incoming}</p>
+              <p className="text-sm">{lead.incoming || "Текст обращения не передан"}</p>
 
               {lead.draft && (
                 <p
