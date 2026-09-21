@@ -82,25 +82,14 @@ export default function LeadsPage() {
         return;
       }
       setError(null);
-      setLeads((prev) => {
-        const incoming = (data.leads ?? []).map(normalizeLead);
-        if (!before) return incoming;
-
-        const seen = new Set(prev.map((lead) => lead.id));
-        const merged = [...prev];
-        for (const lead of incoming) {
-          if (seen.has(lead.id)) continue;
-          seen.add(lead.id);
-          merged.push(lead);
-        }
-        return merged;
-      });
+      const incoming = (data.leads ?? []).map(normalizeLead);
+      setLeads((prev) => (before ? [...prev, ...incoming] : incoming));
       setTotal((prev) =>
         typeof data.total === "number" && data.total >= 0
           ? data.total
           : before
             ? prev
-            : 0,
+            : incoming.length,
       );
       setCursor(data.nextCursor ?? null);
     } catch {
@@ -127,6 +116,7 @@ export default function LeadsPage() {
   }, [leads, search]);
 
   const escalated = leads.filter((l) => l.escalate).length;
+  const hasSearch = search.trim().length > 0;
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -160,7 +150,7 @@ export default function LeadsPage() {
       {loading && <p className="text-muted-foreground text-sm">Загрузка…</p>}
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {!loading && !error && total === 0 && (
+      {!loading && !error && leads.length === 0 && (!hasSearch || total === 0) && (
         <Card>
           <CardContent className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-sm">
             <Inbox className="size-6" />
@@ -172,7 +162,11 @@ export default function LeadsPage() {
         </Card>
       )}
 
-      {!loading && !error && total > 0 && filtered.length === 0 && (
+      {!loading &&
+        !error &&
+        hasSearch &&
+        filtered.length === 0 &&
+        (total > 0 || leads.length > 0) && (
         <Card>
           <CardContent className="text-muted-foreground py-8 text-sm">
             По вашему запросу ничего не найдено.

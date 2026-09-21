@@ -157,5 +157,21 @@ describe("POST /api/leads", () => {
     await expect(jsonArray.json()).resolves.toEqual({
       error: "Ожидается JSON-объект",
     });
+
+    const jsonPrimitive = await POST(
+      new NextRequest("https://example.com/api/leads", {
+        method: "POST",
+        body: JSON.stringify("raw-string"),
+        headers: {
+          authorization: authHeader,
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    expect(jsonPrimitive.status).toBe(400);
+    await expect(jsonPrimitive.json()).resolves.toEqual({
+      error: "Ожидается JSON-объект",
+    });
   });
 });
