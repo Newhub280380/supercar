@@ -438,9 +438,10 @@ function councilRoom(dep, x0, y, z0) {
   scene.add(table, rim, base);
   colliders.push(new THREE.Box3().setFromObject(base));
 
-  // Места совета: 5 светящихся дуговых меток по кругу — сюда садятся модели.
-  for (let i = 0; i < 5; i++) {
-    const a = i / 5 * Math.PI * 2;
+  // Места совета: светящиеся дуговые метки по кругу — сюда садятся модели.
+  const COUNCIL_SEATS = 8;
+  for (let i = 0; i < COUNCIL_SEATS; i++) {
+    const a = i / COUNCIL_SEATS * Math.PI * 2;
     const seat = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.44, 24),
       new THREE.MeshBasicMaterial({ color: dep.hue, transparent: true, opacity: 0.3,
                                     side: THREE.DoubleSide }));
@@ -486,7 +487,7 @@ function councilRoom(dep, x0, y, z0) {
     }
     const roster = live?.responses
       ? live.responses.map(r => r.content ? r.label + ' ✓' : r.label + ' ✗').join(' · ')
-      : 'SONAR · GEMINI · FUSION · NEMOTRON · ДЖАРВИС';
+      : 'SONAR · GEMINI · FUSION · NEMOTRON · NEM-120B · LLAMA · AUTO · ДЖАРВИС';
     g.fillStyle = '#8f7ab8';
     g.fillText(roster, 36, 330);
     tex.needsUpdate = true;
@@ -912,7 +913,7 @@ const AGENT_NAMES = {
   accounting: ['БУХ-БОТ'],
   admin:      ['ДИСПЕТЧЕР-00'],
   chill:      ['БАРИСТА'],
-  council:    ['SONAR', 'GEMINI', 'FUSION', 'NEMOTRON', 'ДЖАРВИС'],
+  council:    ['SONAR', 'GEMINI', 'FUSION', 'NEMOTRON', 'NEM-120B', 'LLAMA', 'AUTO', 'ДЖАРВИС'],
   director:   ['ДЖАРВИС'],
 };
 

@@ -15,6 +15,16 @@ const CONTEXT =
   "корейских HA-филлеров ZISHÉL в Казахстане, клиенты — врачи и клиники. " +
   "Ответь по-русски, плотно, 3–5 предложений: позиция + главный аргумент.";
 
+/** Срезает chain-of-thought reasoning-моделей — оставляет финальный ответ. */
+function stripThinking(text: string): string {
+  let s = text.replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+  const marker = s.search(/(?:^|\n)\s*(?:#{1,3}\s*)?(?:\*\*)?(?:итог|ответ|решение|final|answer|conclusion|synthesis)/i);
+  if (marker > 0 && /thinking process|analyz|разбор|reasoning/i.test(s.slice(0, marker))) {
+    s = s.slice(marker).trim();
+  }
+  return s;
+}
+
 interface MemberResult {
   label: string;
   model: string;
@@ -51,7 +61,7 @@ async function askOpenAICompat(
     return {
       label,
       model: data.model ?? model,
-      content: data.choices?.[0]?.message?.content ?? "",
+      content: stripThinking(data.choices?.[0]?.message?.content ?? ""),
       latencyMs: Date.now() - start,
     };
   } catch (e) {
@@ -98,8 +108,6 @@ export const POST = withRole(
     const prompt = `${CONTEXT}\n\nВопрос: ${question}`;
 
     const jobs: Promise<MemberResult>[] = [];
-    const background: Promise<void>[] = [];
-    const serialResults: MemberResult[] = [];
     if (process.env.PERPLEXITY_API_KEY) {
       jobs.push(askOpenAICompat(
         "SONAR", "https://api.perplexity.ai",
@@ -108,29 +116,20 @@ export const POST = withRole(
     if (process.env.GEMINI_API_KEY) jobs.push(askGemini(prompt));
 
     // Open-модели через локальный FreeLLMAPI-шлюз (бесплатный, :3001).
-    // У free-апстримов общий рейт-лимит ~2 мин между запросами — вызываем
-    // членов последовательно с паузой, иначе все после первого словят 429.
+    // Апстримы с раздельными лимитами: kilo отвечает параллельно,
+    // ovh даёт ~1 запрос в 2 мин — держим там ровно одного члена.
     const flUrl = process.env.FREELLMAPI_BASE_URL ?? "http://127.0.0.1:3001/v1";
     const flKey = process.env.FREELLMAPI_API_KEY;
     if (flKey) {
-      // FUSION — собственная панель шлюза: несколько моделей + судья
-      // одним вызовом; NEMOTRON — тяжёлая одиночная. FUSION первым —
-      // ценнее всего, пока лимит апстрима не съеден.
-      const flMembers = [
-        ["FUSION", "fusion"],
-        ["NEMOTRON", "nemotron-3-ultra-550b"],
-      ] as const;
-      const FL_GAP_MS = 75_000;
-      background.push(
-        (async () => {
-          for (const [i, [label, model]] of flMembers.entries()) {
-            if (i > 0) await new Promise((r) => setTimeout(r, FL_GAP_MS));
-            serialResults.push(
-              await askOpenAICompat(label, flUrl, flKey, model, prompt),
-            );
-          }
-        })(),
-      );
+      for (const [label, model] of [
+        ["FUSION", "fusion"], // панель шлюза: несколько моделей + судья
+        ["NEMOTRON", "nemotron-3-ultra-550b"], // kilo
+        ["NEM-120B", "nemotron-3-super-120b"], // kilo, параллельно с ultra
+        ["LLAMA-70B", "llama-3.3-70b"], // ovh — один на запрос
+        ["AUTO", "auto"], // роутер шлюза: любой здоровый апстрим
+      ] as const) {
+        jobs.push(askOpenAICompat(label, flUrl, flKey, model, prompt));
+      }
     }
 
     // OmniRoute-шлюз (:20128) — когда у upstream-провайдеров прописаны ключи.
@@ -141,33 +140,41 @@ export const POST = withRole(
         "OMNI", omUrl, omKey, process.env.OMNIROUTE_MODEL, prompt));
     }
 
-    if (!jobs.length && !background.length) {
+    if (!jobs.length) {
       return NextResponse.json(
         { error: "Нет ни одного ключа совета" },
         { status: 503 },
       );
     }
 
-    const [direct] = await Promise.all([
-      Promise.all(jobs),
-      Promise.all(background),
-    ]);
-    const responses = [...direct, ...serialResults];
+    const responses = await Promise.all(jobs);
     const answered = responses.filter((r) => r.content);
 
-    // Председатель собирает консенсус: Gemini как дежурный chairman.
+    // Председатель собирает консенсус: Gemini дежурный, при сбое —
+    // роутер FreeLLMAPI (auto подбирает любой здоровый апстрим).
     let synthesis = "";
-    if (answered.length && process.env.GEMINI_API_KEY) {
+    if (answered.length) {
       const brief = answered
         .map((r) => `— ${r.label}: ${r.content}`)
         .join("\n");
-      const chair = await askGemini(
+      const chairPrompt =
         `Вопрос владельца бизнеса: «${question}»\n\nОтветы членов совета:\n${brief}\n\n` +
-          "Ты председатель совета. Собери консенсус по-русски в 3–4 предложениях: " +
-          "общее решение, где модели расходятся, конкретный следующий шаг.",
-        "CHAIRMAN",
-      );
-      synthesis = chair.content ?? "";
+        "Ты председатель совета. Собери консенсус по-русски в 3–4 предложениях: " +
+        "общее решение, где модели расходятся, конкретный следующий шаг.";
+      let chair: MemberResult = { label: "CHAIRMAN", model: "", latencyMs: 0 };
+      if (process.env.GEMINI_API_KEY) {
+        chair = await askGemini(chairPrompt, "CHAIRMAN");
+      }
+      // Sonar — чистая проза без reasoning-дампов; auto — последний резерв.
+      if (!chair.content && process.env.PERPLEXITY_API_KEY) {
+        chair = await askOpenAICompat(
+          "CHAIRMAN", "https://api.perplexity.ai",
+          process.env.PERPLEXITY_API_KEY, "sonar", chairPrompt);
+      }
+      if (!chair.content && flKey) {
+        chair = await askOpenAICompat("CHAIRMAN", flUrl, flKey, "auto", chairPrompt);
+      }
+      synthesis = stripThinking(chair.content ?? "");
     }
 
     return NextResponse.json({
