@@ -54,32 +54,45 @@ export default function LeadsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  const apply = useCallback(
+    (page: LeadsResponse | null, before?: string | null) => {
+      if (!page) {
+        setError("Не удалось загрузить лиды");
+        setLoading(false);
+        return;
+      }
+      setLeads((prev) =>
+        before ? [...prev, ...(page.leads ?? [])] : (page.leads ?? []),
+      );
+      setTotal(page.total ?? 0);
+      setCursor(page.nextCursor ?? null);
+      setLoading(false);
+    },
+    [],
+  );
+
   const load = useCallback(async (before?: string | null) => {
     try {
       const url = before
         ? `/api/leads?before=${encodeURIComponent(before)}`
         : "/api/leads";
       const res = await fetch(url);
-      const data: LeadsResponse = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Не удалось загрузить лиды");
-        return;
-      }
-      setLeads((prev) =>
-        before ? [...prev, ...(data.leads ?? [])] : (data.leads ?? []),
-      );
-      setTotal(data.total ?? 0);
-      setCursor(data.nextCursor ?? null);
+      const page: LeadsResponse = await res.json();
+      return res.ok ? page : null;
     } catch {
-      setError("Не удалось загрузить лиды");
-    } finally {
-      setLoading(false);
+      return null;
     }
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let alive = true;
+    void load().then((page) => {
+      if (alive) apply(page);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [load, apply]);
 
   const filtered = useMemo(() => {
     if (!search) return leads;
@@ -190,7 +203,7 @@ export default function LeadsPage() {
           disabled={loading}
           onClick={() => {
             setLoading(true);
-            void load(cursor);
+            void load(cursor).then((page) => apply(page, cursor));
           }}
         >
           Показать ещё
