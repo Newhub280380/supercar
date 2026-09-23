@@ -64,11 +64,11 @@
   <div class="panel">
     <h3>THE MANAGEMENT HOUSE // HQ-01</h3>
     <div id="clock">—</div>
-    <small>два этажа, семь отделов и чилаут-зона, живые показатели по клику</small>
+    <small>два этажа, восемь отделов и чилаут-зона, живые показатели по клику</small>
   </div>
   <div id="row">
     <div class="panel"><small>WASD — идти, Shift — бежать, мышь — смотреть,<br>ЛКМ на комнате — открыть отдел, E — войти в модуль, Esc — выйти из обзора<br>лестница — в правом конце коридора</small></div>
-    <div class="panel" style="max-width:210px"><small id="stat">отделов: 7 · чилаут: 1 · этажей: 2</small></div>
+    <div class="panel" style="max-width:210px"><small id="stat">отделов: 8 · чилаут: 1 · этажей: 2</small></div>
   </div>
 </div>
 <div id="aim"></div>
@@ -92,7 +92,7 @@
   <h1>MANAGEMENT HOUSE</h1>
   <div id="keys">WASD — движение · мышь — обзор · ЛКМ — данные отдела · E — модуль · Esc — выход</div>
   <button id="go">ВОЙТИ В ДОМ</button>
-  <div id="keys">два этажа · 7 интерактивных комнат + чилаут-зона с деревом света · стены светятся на подходе</div>
+  <div id="keys">два этажа · 8 интерактивных комнат + чилаут-зона с деревом света · стены светятся на подходе</div>
   <div id="keys"><a href="../index.html" style="color:#00ffcc">генеральный хаб — список модулей списком</a></div>
   <div id="keys"><a href="/dashboard" style="color:#00ffcc">◀ вернуться в CRM</a></div>
   <div id="keys"><button id="install" hidden>⬇ УСТАНОВИТЬ КАК ПРИЛОЖЕНИЕ</button></div>
@@ -197,6 +197,14 @@ const DEPARTMENTS = [
            ['Плейлист', 'LO-FI NEON'],
            ['Правило зоны', 'идеи громче задач']],
     note: 'ЛКМ по пульту — включить и выключить музыку' },
+  { id: 'council',    name: 'СОВЕЩАТЕЛЬНАЯ',  floor: 1, col: 0,  row: -1, hue: 0xb98cff,
+    council: true,
+    sub: 'совет моделей: вопрос → разбор → синтез',
+    rows: [['Членов совета', 5],
+           ['Протокол', 'vote → debate → synthesis'],
+           ['Председатель', 'ДЖАРВИС'],
+           ['Вопросов разобрано', '—']],
+    note: 'вопрос владельца уходит на раунд-робин моделей' },
   { id: 'director',   name: 'ДИРЕКТОР',       floor: 1, col: 0,  row: 1,  hue: 0x3dfbe0,
     sub: 'то, что решается только здесь',
     rows: [['Чистая прибыль', [money(last.in - last.out), 'good']],
@@ -211,9 +219,9 @@ for (const dep of DEPARTMENTS) dep.mod = moduleByRoom(dep.id);
 
 /* ---------- Сцена ---------- */
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x05080b, 0.011);
+scene.fog = new THREE.FogExp2(0x05080b, 0.005);
 
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 1600);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -225,6 +233,8 @@ renderer.toneMappingExposure = 1.15;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
+// Отладочный доступ для скриншот-тестов и будущего WebXR-контроллера.
+window.__house = { camera, scene };
 
 /* Материалы — фотосканы, а не цвета: бетон, глазурованная чешуя и вырезанные
    по альфе снимки живой зелени. */
@@ -378,6 +388,79 @@ function dashboard(dep, x0, y, z0) {
   group.position.set(x0, y + 2.6, z0 - 3);
   scene.add(group);
   group.traverse(o => { o.userData.dep = dep; if (o.isMesh) clickable.push(o); });
+}
+
+/* Совещательная: круглый стол совета моделей. В центре — вращающаяся
+   голограмма с текущим вопросом и фазой разбора, вокруг — места членов
+   совета, куда сажаются агенты-модели. */
+const COUNCIL_Q = [
+  'какой оффер выводить на гинекологов в октябре?',
+  'как дожать воронку до $100k в этом квартале?',
+  'стоит ли поднимать цену на ROSE GLAM 10ml?',
+  'кого усиливать первым: продажи или маркетинг?',
+  'как упаковать дом в SaaS-подписку?',
+];
+const councilState = { qi: 0, phase: 'разбор', timer: 0 };
+function councilRoom(dep, x0, y, z0) {
+  // Стол: тёмный диск с подсвеченной кромкой и кольцом мест.
+  const table = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 3.1, 0.16, 48),
+    new THREE.MeshStandardMaterial({ color: 0x0c1116, roughness: 0.35, metalness: 0.7 }));
+  table.position.set(x0, y + 0.95, z0);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(2.95, 0.035, 8, 64),
+    new THREE.MeshBasicMaterial({ color: dep.hue }));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.set(x0, y + 1.04, z0);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 0.95, 24),
+    new THREE.MeshStandardMaterial({ color: 0x090d10, roughness: 0.5, metalness: 0.6 }));
+  base.position.set(x0, y + 0.48, z0);
+  scene.add(table, rim, base);
+  colliders.push(new THREE.Box3().setFromObject(base));
+
+  // Места совета: 5 светящихся дуговых меток по кругу — сюда садятся модели.
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * Math.PI * 2;
+    const seat = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.44, 24),
+      new THREE.MeshBasicMaterial({ color: dep.hue, transparent: true, opacity: 0.3,
+                                    side: THREE.DoubleSide }));
+    seat.rotation.x = -Math.PI / 2;
+    seat.position.set(x0 + Math.cos(a) * 4.1, y + 0.06, z0 + Math.sin(a) * 4.1);
+    scene.add(seat);
+  }
+
+  // Голограмма вопроса над столом: вращается, меняет фазу разбора.
+  const cnv = document.createElement('canvas');
+  cnv.width = 1024; cnv.height = 384;
+  const ctx = cnv.getContext('2d');
+  const tex = new THREE.CanvasTexture(cnv);
+  const holo = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 2.4),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.92,
+                                  side: THREE.DoubleSide, depthWrite: false }));
+  holo.position.set(x0, y + 3.4, z0);
+  scene.add(holo);
+  function drawCouncil() {
+    const g = ctx;
+    g.clearRect(0, 0, 1024, 384);
+    g.fillStyle = 'rgba(10,6,24,0.88)'; g.fillRect(0, 0, 1024, 384);
+    g.strokeStyle = '#b98cff'; g.lineWidth = 4; g.strokeRect(4, 4, 1016, 376);
+    g.font = 'bold 34px "Segoe UI", sans-serif'; g.fillStyle = '#b98cff';
+    g.fillText('СОВЕТ МОДЕЛЕЙ · ' + councilState.phase.toUpperCase(), 36, 58);
+    g.font = '30px "Segoe UI", sans-serif'; g.fillStyle = '#e8dcff';
+    const q = COUNCIL_Q[councilState.qi];
+    g.fillText('«' + q + '»', 36, 128);
+    g.font = '26px "Segoe UI", sans-serif'; g.fillStyle = '#8f7ab8';
+    const PHASES = { 'разбор': 'модели отвечают независимо…',
+                     'спор':   'перекрёстная критика и доводы…',
+                     'синтез': 'председатель собирает решение…',
+                     'готово': 'решение принято — на стол владельцу' };
+    g.fillText(PHASES[councilState.phase] || '', 36, 190);
+    g.fillText('CLAUDE · SONAR · GEMINI · DEEPSEEK · ДЖАРВИС', 36, 330);
+    tex.needsUpdate = true;
+  }
+  drawCouncil();
+  animated.push(() => {
+    holo.rotation.y = Math.atan2(camera.position.x - x0, camera.position.z - z0);
+  });
+  councilState.draw = drawCouncil;
 }
 
 /* Объекты, которым нужен кадр: дерево света, чешуя и эквалайзер пульта. */
@@ -693,11 +776,14 @@ function room(dep) {
   const doorSide = dep.row === -1 ? 1 : -1; // дверь всегда в коридор
   const side = (ROOM - DOOR) / 2;
 
-  wall(x0, y, z0 - doorSide * HALF, ROOM, WALL, dep.hue);              // глухая стена
-  wall(x0 - HALF, y, z0, WALL, ROOM, dep.hue);
-  wall(x0 + HALF, y, z0, WALL, ROOM, dep.hue);
-  wall(x0 - (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue);
-  wall(x0 + (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue);
+  // Стены отдела привязаны к нему — диспетчер меняет их цвет по статусу работ.
+  [
+    wall(x0, y, z0 - doorSide * HALF, ROOM, WALL, dep.hue),            // глухая стена
+    wall(x0 - HALF, y, z0, WALL, ROOM, dep.hue),
+    wall(x0 + HALF, y, z0, WALL, ROOM, dep.hue),
+    wall(x0 - (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue),
+    wall(x0 + (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue),
+  ].forEach(w => w.userData.dep = dep);
 
   // Пол-подсветка отдела: видно, где стоишь, и куда идти дальше.
   // В чилауте её нет — иначе пол под зеленью уходит в цветную заливку.
@@ -721,8 +807,10 @@ function room(dep) {
     scene.add(warm);
   }
 
-  // Терминал отдела — цель для клика. В чилауте центр занят деревом.
-  const kx = dep.lounge ? x0 + 4.6 : x0, kz = dep.lounge ? z0 + 4.6 : z0;
+  // Терминал отдела — цель для клика. В чилауте центр занят деревом,
+  // в совещательной — круглым столом совета.
+  const kioskOff = dep.lounge || dep.council;
+  const kx = kioskOff ? x0 + 4.6 : x0, kz = kioskOff ? z0 + 4.6 : z0;
   const kiosk = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.35, 2),
     new THREE.MeshStandardMaterial({ color: 0x0d1519, roughness: 0.5, metalness: 0.6 }));
   kiosk.position.set(kx, y + 1.1, kz);
@@ -751,6 +839,7 @@ function room(dep) {
 
   if (dep.id === 'director') dashboard(dep, x0, y, z0);
   if (dep.lounge) lounge(dep, x0, y, z0);
+  if (dep.council) councilRoom(dep, x0, y, z0);
 
   // Портал в модуль: светящаяся рамка на глухой стене — видно, куда ведёт комната.
   if (dep.mod) {
@@ -774,6 +863,251 @@ function room(dep) {
   for (const o of [kiosk, screen, tag]) { o.userData.dep = dep; clickable.push(o); }
 }
 DEPARTMENTS.forEach(room);
+
+/* ---------- Агенты: цифровые сотрудники отделов ----------
+   Не фотореалистичные люди, а полупрозрачные голограммы — сотрудник здесь
+   это «процесс системы», а не посетитель. Каждый патрулирует свою комнату,
+   замирает у терминала «печатать» и поворачивает голову к игроку на подходе.
+   Имена — из реального стека агентов (00_dispatcher, crm, smm и т.д.). */
+const AGENT_NAMES = {
+  reception:  ['АДМИН-БОТ'],
+  sales:      ['CRM-АГЕНТ', 'ОБЗВОН-БОТ'],
+  marketing:  ['SMM-АГЕНТ', 'КРЕАТИВ-БОТ'],
+  warehouse:  ['СКЛАД-БОТ'],
+  accounting: ['БУХ-БОТ'],
+  admin:      ['ДИСПЕТЧЕР-00'],
+  chill:      ['БАРИСТА'],
+  council:    ['CLAUDE', 'SONAR', 'GEMINI', 'DEEPSEEK', 'ДЖАРВИС'],
+  director:   ['ДЖАРВИС'],
+};
+
+const agents = [];
+function agentFigure(hue) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x10181d, roughness: 0.35, metalness: 0.4,
+    transparent: true, opacity: 0.92,
+    emissive: new THREE.Color(hue), emissiveIntensity: 0.5,
+  });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.85, 4, 12), mat);
+  torso.position.y = 1.15;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 16), mat.clone());
+  head.position.y = 1.95;
+  head.material.emissiveIntensity = 0.75;
+  // Визор — единственное «лицо»: светящаяся полоса вместо глаз.
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.05),
+    new THREE.MeshBasicMaterial({ color: hue }));
+  visor.position.set(0, 0.02, 0.18);
+  head.add(visor);
+  // Контур пола под агентом: голограмма «стоит», а не висит в воздухе.
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.5, 32),
+    new THREE.MeshBasicMaterial({ color: hue, transparent: true, opacity: 0.35,
+                                  side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.03;
+  g.add(torso, head, ring);
+  g.userData.head = head;
+  return g;
+}
+
+function spawnAgents(dep) {
+  const names = AGENT_NAMES[dep.id] ?? [];
+  const x0 = dep.col * COL, z0 = dep.row * ROWZ, y = dep.floor * LIFT;
+  // Центр занят терминалом (в чилауте — деревом): точки кладём с отступом.
+  const cx = dep.lounge ? x0 + 4.6 : x0, cz = dep.lounge ? z0 + 4.6 : z0;
+  names.forEach((name, i) => {
+    const fig = agentFigure(dep.hue);
+    const tag = label(name, dep.hue);
+    tag.scale.set(0.16, 0.16, 1);
+    tag.position.y = 2.5;
+    fig.add(tag);
+    scene.add(fig);
+
+    // 4–5 точек маршрута внутри комнаты, вне радиуса терминала.
+    // В совещательной маршрутов нет: члены совета сидят за круглым столом.
+    const pts = [];
+    if (dep.council) {
+      const a = i / names.length * Math.PI * 2;
+      pts.push(new THREE.Vector3(x0 + Math.cos(a) * 4.1, 0, z0 + Math.sin(a) * 4.1));
+    } else {
+      for (let tries = 0; tries < 40 && pts.length < 5; tries++) {
+        const px = x0 + (Math.random() * 2 - 1) * (HALF - 2.4);
+        const pz = z0 + (Math.random() * 2 - 1) * (HALF - 2.4);
+        if (Math.hypot(px - cx, pz - cz) < 3.4) continue;
+        pts.push(new THREE.Vector3(px, 0, pz));
+      }
+      if (!pts.length) pts.push(new THREE.Vector3(x0 + 3, 0, z0 + 3));
+    }
+
+    const a = {
+      fig, head: fig.userData.head, tag, pts, y, dep,
+      // Рабочая точка у терминала: сюда агент уходит, когда диспетчер
+      // ставит задачу его отделу. Советник сидит на своём месте за столом.
+      desk: dep.council ? pts[0].clone()
+                        : new THREE.Vector3(cx + (i ? 1.7 : -1.7), 0, cz + 1.6),
+      kiosk: new THREE.Vector3(dep.council ? x0 : cx, 0, dep.council ? z0 : cz),
+      primary: i === 0,
+      i: Math.floor(Math.random() * pts.length),
+      wait: Math.random() * 3 + i,
+      speed: 1.1 + Math.random() * 0.5,
+      phase: Math.random() * 6.28,
+    };
+    fig.position.set(pts[a.i].x, y, pts[a.i].z);
+    agents.push(a);
+  });
+}
+DEPARTMENTS.forEach(spawnAgents);
+
+function tickAgents(dt, t) {
+  for (const a of agents) {
+    // Отдел в работе — ведущий агент сидит у терминала, остальные патрулируют.
+    // Советники сидят за столом постоянно — это их рабочее место.
+    const working = a.primary && a.dep.status === 'work';
+    const seated = !!a.dep.council;
+    const target = (working || seated) ? a.desk : a.pts[a.i];
+    const p = a.fig.position;
+    const dx = target.x - p.x, dz = target.z - p.z;
+    const dist = Math.hypot(dx, dz);
+
+    if (a.wait > 0 || ((working || seated) && dist < 0.3)) {
+      // «Печатает» на месте: дыхание и лёгкое покачивание корпуса.
+      if (a.wait > 0) a.wait -= dt;
+      p.y = a.y + Math.sin(t * 2.2 + a.phase) * 0.02;
+      a.fig.rotation.z = Math.sin(t * 1.4 + a.phase) * 0.03;
+      // У терминала смотрит на экран, советник — в центр стола.
+      if (working || seated) a.fig.rotation.y += (Math.atan2(a.kiosk.x - p.x, a.kiosk.z - p.z) - a.fig.rotation.y) * Math.min(1, dt * 4);
+    } else if (dist < 0.3) {
+      a.i = (a.i + 1) % a.pts.length;
+      a.wait = 2.5 + Math.random() * 4.5;
+    } else {
+      // Идёт к следующей точке — корпус в сторону движения, шаг читается бобингом.
+      p.x += dx / dist * a.speed * dt;
+      p.z += dz / dist * a.speed * dt;
+      p.y = a.y + Math.abs(Math.sin(t * 6 + a.phase)) * 0.045;
+      a.fig.rotation.y = Math.atan2(dx, dz);
+      a.fig.rotation.z = Math.sin(t * 6 + a.phase) * 0.04;
+    }
+
+    // Голова следит за игроком ближе 6 м — агент «замечает» входящего.
+    const pd = Math.hypot(camera.position.x - p.x, camera.position.z - p.z);
+    if (pd < 6 && Math.abs(camera.position.y - (a.y + 1.7)) < 4) {
+      const want = Math.atan2(camera.position.x - p.x, camera.position.z - p.z) - a.fig.rotation.y;
+      const wrapped = Math.atan2(Math.sin(want), Math.cos(want));
+      a.head.rotation.y += (THREE.MathUtils.clamp(wrapped, -1.1, 1.1) - a.head.rotation.y) * Math.min(1, dt * 6);
+    } else {
+      a.head.rotation.y += (0 - a.head.rotation.y) * Math.min(1, dt * 3);
+    }
+    // Табличка всегда к наблюдателю.
+    a.tag.rotation.y = Math.atan2(camera.position.x - p.x, camera.position.z - p.z) - a.fig.rotation.y;
+  }
+}
+
+/* ---------- Диспетчер и статусные стены ----------
+   ДИСПЕТЧЕР-00 стоит на ресепшне и раздаёт задачи: отдел получает задачу —
+   его стены разгораются рабочим цветом, ведущий агент уходит к терминалу;
+   задача сделана — стены вспыхивают зелёным и гаснут до дежурного тона.
+   Просрочка из живых метрик красит отдел в красный. */
+const STATUS_HUE = { idle: null, work: null, done: 0x2bff88, alert: 0xff4d5e };
+function statusHue(dep) {
+  if (dep.status === 'alert') return STATUS_HUE.alert;
+  if (dep.status === 'done') return STATUS_HUE.done;
+  return dep.hue;
+}
+
+const TASKS = {
+  reception:  ['разбор входящих обращений', 'ответы в Instagram', 'запись на консультацию'],
+  sales:      ['обзвон горячих лидов', 'квалификация базы', 'выставление счетов', 'дожим по оплате'],
+  marketing:  ['тест креативов', 'запуск рекламной кампании', 'разбор CTR', 'контент-план недели'],
+  warehouse:  ['сверка остатков', 'приём поставки', 'отгрузка заказов'],
+  accounting: ['сверка прихода', 'закрытие дебиторки', 'подготовка налоговой'],
+  admin:      ['распределение задач', 'контроль смен', 'разбор просрочек'],
+  director:   ['approve рассылки', 'обзор воронки', 'решение по риску №1'],
+  council:    ['разбор вопроса владельца', 'раунд ответов моделей', 'голосование за решение'],
+  chill:      ['пауза на кофе'],
+};
+for (const dep of DEPARTMENTS) { dep.status = 'idle'; dep.task = '—'; }
+
+/* Голограмма-борд над терминалом ресепшна: кто сейчас на задаче. */
+const boardCnv = document.createElement('canvas');
+boardCnv.width = 1024; boardCnv.height = 512;
+const boardCtx = boardCnv.getContext('2d');
+const boardTex = new THREE.CanvasTexture(boardCnv);
+const board = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 3.75),
+  new THREE.MeshBasicMaterial({ map: boardTex, transparent: true, opacity: 0.94 }));
+{
+  const rx = COL, rz = ROWZ; // ресепшн: floor 0, col 1, row 1
+  board.position.set(rx, 5.1, rz);
+  scene.add(board);
+  animated.push(() => {
+    board.rotation.y = Math.atan2(camera.position.x - rx, camera.position.z - rz);
+  });
+}
+function drawBoard() {
+  const g = boardCtx;
+  g.clearRect(0, 0, 1024, 512);
+  g.fillStyle = 'rgba(4,12,12,0.92)'; g.fillRect(0, 0, 1024, 512);
+  g.strokeStyle = '#00ffcc'; g.lineWidth = 5; g.strokeRect(4, 4, 1016, 504);
+  g.font = 'bold 40px "Segoe UI", sans-serif'; g.fillStyle = '#00ffcc';
+  g.fillText('ДИСПЕТЧЕР-00 · РАЗДАЧА ЗАДАЧ', 34, 58);
+  g.font = '30px "Segoe UI", sans-serif';
+  let yy = 118;
+  const STATUS_TXT = { idle: 'ожидает', work: 'В РАБОТЕ', done: 'готово', alert: 'ПРОСРОЧКА' };
+  const STATUS_COL = { idle: '#5d7070', work: '#00ffcc', done: '#2bff88', alert: '#ff4d5e' };
+  for (const dep of DEPARTMENTS) {
+    if (dep.lounge) continue;
+    g.fillStyle = STATUS_COL[dep.status];
+    g.fillRect(34, yy - 22, 14, 14);
+    g.fillStyle = '#d7e4e4';
+    g.fillText(dep.name, 62, yy - 8);
+    g.fillStyle = STATUS_COL[dep.status];
+    g.fillText(dep.status === 'work' ? dep.task : STATUS_TXT[dep.status], 560, yy - 8);
+    yy += 52;
+  }
+  boardTex.needsUpdate = true;
+}
+drawBoard();
+
+/* Цикл диспетчера: задача → работа → готово → следующий отдел. */
+let dispatchTimer = 0, doneTimer = 0;
+function dispatch() {
+  const ready = DEPARTMENTS.filter(d => !d.lounge && d.status === 'idle');
+  if (!ready.length) return;
+  const dep = ready[Math.floor(Math.random() * ready.length)];
+  const pool = TASKS[dep.id] ?? ['задача'];
+  dep.task = pool[Math.floor(Math.random() * pool.length)];
+  dep.status = 'work';
+  dep.workLeft = 7 + Math.random() * 6;
+  drawBoard();
+}
+function tickDispatch(dt) {
+  dispatchTimer -= dt;
+  if (dispatchTimer <= 0) { dispatch(); dispatchTimer = 9 + Math.random() * 5; }
+  for (const dep of DEPARTMENTS) {
+    if (dep.status === 'work') {
+      dep.workLeft -= dt;
+      if (dep.workLeft <= 0) { dep.status = 'done'; dep.doneLeft = 4; drawBoard(); }
+    } else if (dep.status === 'done') {
+      dep.doneLeft -= dt;
+      if (dep.doneLeft <= 0) { dep.status = 'idle'; dep.task = '—'; drawBoard(); }
+    }
+  }
+  // Фазы совета следуют за статусом его комнаты: в работе — разбор, спор,
+  // синтез; готово — решение вынесено, следующий вопрос встаёт в очередь.
+  const cd = DEPARTMENTS.find(d => d.id === 'council');
+  if (cd && councilState.draw) {
+    if (cd.status === 'work') {
+      const f = ['разбор', 'спор', 'синтез'][Math.min(2, Math.floor((1 - cd.workLeft / 13) * 3))];
+      if (f !== councilState.phase) { councilState.phase = f; councilState.draw(); }
+    } else if (cd.status === 'done' && councilState.phase !== 'готово') {
+      councilState.phase = 'готово'; councilState.draw();
+    } else if (cd.status === 'idle' && councilState.phase === 'готово') {
+      councilState.qi = (councilState.qi + 1) % COUNCIL_Q.length;
+      councilState.phase = 'разбор'; councilState.draw();
+    }
+  }
+}
+/* Стартовая раздача — дом оживает сразу после входа. */
+dispatch(); dispatch();
 
 /* Лестница: пандус со ступенями. Ступени — только декор, ходьба идёт
    по аналитической высоте (groundAt), поэтому подъём всегда плавный. */
@@ -811,13 +1145,111 @@ for (const y of [0, LIFT]) {
   }
 }
 
-/* Периметр: снизу полный, сверху с обрывом у лестничного проёма. */
+/* Периметр — витраж: сплошное стекло в металлической обвязке, за ним
+   предгорье и город. Коллайдер остаётся — через стекло выйти нельзя. */
+const GLASS_MAT = new THREE.MeshPhysicalMaterial({
+  color: 0xa8d8e8, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.14,
+  side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.8,
+  clearcoat: 1, clearcoatRoughness: 0.06,
+});
+const MULLION_MAT = new THREE.MeshStandardMaterial({
+  color: 0x1a222b, roughness: 0.4, metalness: 0.85,
+});
+function glassWall(cx, y, cz, w, d) {
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), GLASS_MAT);
+  glass.position.set(cx, y + H / 2, cz);
+  scene.add(glass);
+  colliders.push(new THREE.Box3().setFromObject(glass));
+
+  // Мулльоны каждые ~7 м + поручень и верхняя балка — ритм витража.
+  const alongX = w > d, len = Math.max(w, d);
+  const post = new THREE.BoxGeometry(alongX ? 0.18 : w + 0.08, H, alongX ? d + 0.08 : 0.18);
+  for (let off = -len / 2; off <= len / 2 + 0.01; off += 7) {
+    const m = new THREE.Mesh(post, MULLION_MAT);
+    m.position.set(cx + (alongX ? off : 0), y + H / 2, cz + (alongX ? 0 : off));
+    scene.add(m);
+  }
+  for (const ry of [0.9, H - 0.3]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(alongX ? w : w + 0.1, 0.14, alongX ? d + 0.1 : d),
+      MULLION_MAT);
+    rail.position.set(cx, y + ry, cz);
+    scene.add(rail);
+  }
+}
 for (const y of [0, LIFT]) {
   const x1 = y === 0 ? PLAN_X1 : RAMP_X0;
-  wall((PLAN_X0 + x1) / 2, y, -PLAN_Z, x1 - PLAN_X0, WALL);
-  wall((PLAN_X0 + x1) / 2, y, PLAN_Z, x1 - PLAN_X0, WALL);
-  wall(PLAN_X0, y, 0, WALL, PLAN_Z * 2);
-  wall(x1, y, 0, WALL, PLAN_Z * 2);
+  glassWall((PLAN_X0 + x1) / 2, y, -PLAN_Z, x1 - PLAN_X0, WALL);
+  glassWall((PLAN_X0 + x1) / 2, y, PLAN_Z, x1 - PLAN_X0, WALL);
+  glassWall(PLAN_X0, y, 0, WALL, PLAN_Z * 2);
+  glassWall(x1, y, 0, WALL, PLAN_Z * 2);
+}
+
+/* ---------- Локация: предгорье, зелень вокруг, город вдали ----------
+   Дом стоит на зелёном плато: холмы и сканы деревьев кольцом, на юге —
+   светящийся силуэт мегаполиса, на севере — тёмные горы. */
+{
+  const land = new THREE.Mesh(new THREE.CircleGeometry(1400, 48),
+    new THREE.MeshStandardMaterial({ color: 0x0b1a10, roughness: 1 }));
+  land.rotation.x = -Math.PI / 2;
+  land.position.y = -0.6;
+  scene.add(land);
+
+  // Предгорья — мягкие зелёные валы вокруг плато, чуть светятся изнутри,
+  // чтобы зелень читалась и ночью.
+  const hillMat = new THREE.MeshStandardMaterial({ color: 0x10251a, roughness: 0.95,
+    flatShading: true, emissive: 0x0d2416, emissiveIntensity: 0.5 });
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2 + Math.random() * 0.4;
+    const r = 220 + Math.random() * 320;
+    const h = 26 + Math.random() * 60;
+    const hill = new THREE.Mesh(new THREE.ConeGeometry(h * (1.4 + Math.random()), h, 7), hillMat);
+    hill.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r);
+    hill.rotation.y = Math.random() * Math.PI;
+    scene.add(hill);
+  }
+  // Горы на севере — выше и темнее.
+  const mntMat = new THREE.MeshStandardMaterial({ color: 0x0a1016, roughness: 1, flatShading: true });
+  for (let i = 0; i < 5; i++) {
+    const h = 180 + Math.random() * 160;
+    const mnt = new THREE.Mesh(new THREE.ConeGeometry(h * 1.2, h, 4), mntMat);
+    mnt.position.set(-350 + i * 260 + Math.random() * 80, h / 2 - 4, -560 - Math.random() * 160);
+    scene.add(mnt);
+  }
+  // Город на юге: ряд башен с тёплым светом окон — «вид на мегаполис».
+  const cityMat = new THREE.MeshStandardMaterial({ color: 0x0c1119, roughness: 0.7, metalness: 0.4,
+    emissive: 0x33506b, emissiveIntensity: 0.8 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xffc98a });
+  for (let i = 0; i < 34; i++) {
+    const w = 10 + Math.random() * 22, h = 26 + Math.random() * 110;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), cityMat);
+    const bx = -420 + i * 26 + Math.random() * 14;
+    const bz = 380 + Math.random() * 180;
+    b.position.set(bx, h / 2, bz);
+    scene.add(b);
+    if (Math.random() < 0.55) { // световая мачта/антенна на крыше
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 8), glowMat);
+      tip.position.set(bx, h + 1.2, bz);
+      scene.add(tip);
+    }
+  }
+  // Зарево мегаполиса за линией башен — город читается даже в темноте.
+  const cityGlow = new THREE.Mesh(new THREE.PlaneGeometry(1000, 120),
+    new THREE.MeshBasicMaterial({ color: 0x1b3550, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false }));
+  cityGlow.position.set(0, 46, 560);
+  cityGlow.rotation.y = Math.PI; // свечение смотрит на дом
+  scene.add(cityGlow);
+  // Зелень вплотную к стеклу: сканы деревьев и кустов кольцом по периметру.
+  const trees = ['island_tree_02', 'pachira_aquatica_01', 'shrub_04', 'fern_02'];
+  for (let i = 0; i < 22; i++) {
+    const a = i / 22 * Math.PI * 2 + Math.random() * 0.25;
+    const r = 52 + Math.random() * 90;
+    const tx = Math.cos(a) * r, tz = Math.sin(a) * r;
+    if (tx > PLAN_X0 - 6 && tx < PLAN_X1 + 6 && Math.abs(tz) < PLAN_Z + 6) continue;
+    const kind = trees[i % trees.length];
+    plant(kind, tx, -0.5, tz, kind === 'island_tree_02' ? 9 + Math.random() * 5 : 1.2 + Math.random() * 2.6);
+  }
 }
 // Ограждение проёма второго этажа: пройти можно только через лестницу.
 for (const sgn of [-1, 1]) {
@@ -895,15 +1327,22 @@ function move(dt) {
   floorTag.innerHTML = `<b>${g > LIFT / 2 ? 2 : 1}</b>ЭТАЖ`;
 }
 
-/* ---------- Реактивные стены: цвет отдела разгорается на подходе ---------- */
-function react() {
+/* ---------- Реактивные стены: цвет отдела = статус работ диспетчера ---------- */
+function react(t) {
   const p = camera.position;
   for (const m of reactive) {
+    const dep = m.userData.dep;
     const d = m.position.distanceTo(p);
     const k = THREE.MathUtils.clamp((REACT_FAR - d) / (REACT_FAR - REACT_NEAR), 0, 1);
+    if (dep) m.material.emissive.setHex(statusHue(dep));
     // Мягко, чтобы бетон оставался бетоном: подсветка добавляется в тон,
-    // а не заливает стену ровным цветом.
-    m.material.emissiveIntensity = 0.16 * k * k;
+    // а не заливает стену ровным цветом. Отдел в работе светится сам,
+    // просрочка пульсирует красным.
+    let glow = 0.16 * k * k;
+    if (dep?.status === 'work') glow += 0.05 + 0.03 * Math.sin(t * 2.4);
+    if (dep?.status === 'done') glow += 0.1;
+    if (dep?.status === 'alert') glow += 0.08 + 0.07 * Math.sin(t * 5);
+    m.material.emissiveIntensity = glow;
     m.material.color.setHex(0x2a3238).lerp(m.material.emissive, 0.1 * k);
   }
 }
@@ -1012,8 +1451,18 @@ function applyLiveMetrics(m) {
     ['Средний чек', money(m.revenue.avgTicket)],
     ['Клиентов в базе', m.clients.total]];
 
+  // Живые данные задают реальные статусы: просрочка красит отдел в красный,
+  // заявки в работе — отдел продаж сразу «в работе».
+  if (m.appointments.overdue) dept('admin').status = 'alert';
+  if (m.appointments.pending || m.appointments.confirmed) {
+    dept('sales').status = 'work';
+    dept('sales').task = 'обработка записей';
+    dept('sales').workLeft = 60;
+  }
+  drawBoard();
+
   document.getElementById('stat').textContent =
-    'отделов: 7 · чилаут: 1 · этажей: 2 · данные из CRM';
+    'отделов: 8 · чилаут: 1 · этажей: 2 · данные из CRM';
   const open = DEPARTMENTS.find(
     d => d.name === document.getElementById('c-title').textContent);
   if (card.style.display === 'block' && open) openCard(open);
@@ -1045,9 +1494,11 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (controls.isLocked) { move(dt); pick(); } else { lookEl.textContent = ''; }
-  react();
   const t = clock.elapsedTime;
+  react(t);
   for (const fn of animated) fn(t);
+  tickAgents(dt, t);
+  tickDispatch(dt);
   clockEl.textContent = new Date().toLocaleTimeString('ru-RU');
   composer.render();
 }
