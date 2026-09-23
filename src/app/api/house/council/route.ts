@@ -40,6 +40,7 @@ async function askOpenAICompat(
   apiKey: string,
   model: string,
   prompt: string,
+  maxTokens = 512,
 ): Promise<MemberResult> {
   const start = Date.now();
   try {
@@ -52,16 +53,25 @@ async function askOpenAICompat(
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 512,
+        max_tokens: maxTokens,
         temperature: 0.4,
       }),
     });
-    const data = await res.json();
+    const raw = await res.text();
+    let data: any = {};
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${raw.slice(0, 120)}`);
+    }
     if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+    const msg = data.choices?.[0]?.message ?? {};
+    const content = stripThinking(msg.content ?? "") ||
+      stripThinking(msg.reasoning_content ?? "");
     return {
       label,
       model: data.model ?? model,
-      content: stripThinking(data.choices?.[0]?.message?.content ?? ""),
+      content,
       latencyMs: Date.now() - start,
     };
   } catch (e) {
@@ -105,7 +115,9 @@ export const POST = withRole(
     if (!question) {
       return NextResponse.json({ error: "Пустой вопрос" }, { status: 400 });
     }
-    const prompt = `${CONTEXT}\n\nВопрос: ${question}`;
+    // Контекст можно переопределить вопросом — для задач вне Beauty Art.
+    const context = String(body?.context ?? "").trim().slice(0, 2000) || CONTEXT;
+    const prompt = `${context}\n\nВопрос: ${question}`;
 
     const jobs: Promise<MemberResult>[] = [];
     if (process.env.PERPLEXITY_API_KEY) {
@@ -129,6 +141,28 @@ export const POST = withRole(
         ["AUTO", "auto"], // роутер шлюза: любой здоровый апстрим
       ] as const) {
         jobs.push(askOpenAICompat(label, flUrl, flKey, model, prompt));
+      }
+    }
+
+    // Prime Intellect Inference (платный ключ, api.pinference.ai) —
+    // весь фронтир одним шлюзом. Это тяжёлая линейка совета.
+    const piUrl =
+      process.env.PRIME_INTELLECT_BASE_URL ?? "https://api.pinference.ai/api/v1";
+    const piKey = process.env.PRIME_INTELLECT_API_KEY;
+    if (piKey) {
+      const piModels = (process.env.PRIME_INTELLECT_MODELS ??
+        "CLAUDE:anthropic/claude-sonnet-5,GPT:openai/gpt-5.6-terra," +
+          "DEEPSEEK:deepseek/deepseek-v4-pro,KIMI:moonshotai/kimi-k3," +
+          "GLM:z-ai/glm-5.3,GROK:x-ai/grok-4.7,QWEN-397B:qwen/qwen3.5-397b-a17b")
+        .split(",")
+        .map((pair) => pair.split(":"))
+        .filter((p) => p.length === 2 && p[0] && p[1]);
+      for (const [label, model] of piModels) {
+        // reasoning-модели (deepseek-pro, kimi-k3, glm) съедают бюджет
+        // на размышления — даём больше токенов, иначе контент пустой.
+        jobs.push(
+          askOpenAICompat(label.trim(), piUrl, piKey, model.trim(), prompt, 2500),
+        );
       }
     }
 
