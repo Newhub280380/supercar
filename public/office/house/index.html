@@ -775,6 +775,125 @@ function room(dep) {
 }
 DEPARTMENTS.forEach(room);
 
+/* ---------- Агенты: цифровые сотрудники отделов ----------
+   Не фотореалистичные люди, а полупрозрачные голограммы — сотрудник здесь
+   это «процесс системы», а не посетитель. Каждый патрулирует свою комнату,
+   замирает у терминала «печатать» и поворачивает голову к игроку на подходе.
+   Имена — из реального стека агентов (00_dispatcher, crm, smm и т.д.). */
+const AGENT_NAMES = {
+  reception:  ['АДМИН-БОТ'],
+  sales:      ['CRM-АГЕНТ', 'ОБЗВОН-БОТ'],
+  marketing:  ['SMM-АГЕНТ', 'КРЕАТИВ-БОТ'],
+  warehouse:  ['СКЛАД-БОТ'],
+  accounting: ['БУХ-БОТ'],
+  admin:      ['ДИСПЕТЧЕР-00'],
+  chill:      ['БАРИСТА'],
+  director:   ['ДЖАРВИС'],
+};
+
+const agents = [];
+function agentFigure(hue) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x10181d, roughness: 0.35, metalness: 0.4,
+    transparent: true, opacity: 0.92,
+    emissive: new THREE.Color(hue), emissiveIntensity: 0.5,
+  });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.85, 4, 12), mat);
+  torso.position.y = 1.15;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 16), mat.clone());
+  head.position.y = 1.95;
+  head.material.emissiveIntensity = 0.75;
+  // Визор — единственное «лицо»: светящаяся полоса вместо глаз.
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.05),
+    new THREE.MeshBasicMaterial({ color: hue }));
+  visor.position.set(0, 0.02, 0.18);
+  head.add(visor);
+  // Контур пола под агентом: голограмма «стоит», а не висит в воздухе.
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.5, 32),
+    new THREE.MeshBasicMaterial({ color: hue, transparent: true, opacity: 0.35,
+                                  side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.03;
+  g.add(torso, head, ring);
+  g.userData.head = head;
+  return g;
+}
+
+function spawnAgents(dep) {
+  const names = AGENT_NAMES[dep.id] ?? [];
+  const x0 = dep.col * COL, z0 = dep.row * ROWZ, y = dep.floor * LIFT;
+  // Центр занят терминалом (в чилауте — деревом): точки кладём с отступом.
+  const cx = dep.lounge ? x0 + 4.6 : x0, cz = dep.lounge ? z0 + 4.6 : z0;
+  names.forEach((name, i) => {
+    const fig = agentFigure(dep.hue);
+    const tag = label(name, dep.hue);
+    tag.scale.set(0.16, 0.16, 1);
+    tag.position.y = 2.5;
+    fig.add(tag);
+    scene.add(fig);
+
+    // 4–5 точек маршрута внутри комнаты, вне радиуса терминала.
+    const pts = [];
+    for (let tries = 0; tries < 40 && pts.length < 5; tries++) {
+      const px = x0 + (Math.random() * 2 - 1) * (HALF - 2.4);
+      const pz = z0 + (Math.random() * 2 - 1) * (HALF - 2.4);
+      if (Math.hypot(px - cx, pz - cz) < 3.4) continue;
+      pts.push(new THREE.Vector3(px, 0, pz));
+    }
+    if (!pts.length) pts.push(new THREE.Vector3(x0 + 3, 0, z0 + 3));
+
+    const a = {
+      fig, head: fig.userData.head, tag, pts, y,
+      i: Math.floor(Math.random() * pts.length),
+      wait: Math.random() * 3 + i,
+      speed: 1.1 + Math.random() * 0.5,
+      phase: Math.random() * 6.28,
+    };
+    fig.position.set(pts[a.i].x, y, pts[a.i].z);
+    agents.push(a);
+  });
+}
+DEPARTMENTS.forEach(spawnAgents);
+
+function tickAgents(dt, t) {
+  for (const a of agents) {
+    const target = a.pts[a.i];
+    const p = a.fig.position;
+    const dx = target.x - p.x, dz = target.z - p.z;
+    const dist = Math.hypot(dx, dz);
+
+    if (a.wait > 0) {
+      // «Печатает» на месте: дыхание и лёгкое покачивание корпуса.
+      a.wait -= dt;
+      p.y = a.y + Math.sin(t * 2.2 + a.phase) * 0.02;
+      a.fig.rotation.z = Math.sin(t * 1.4 + a.phase) * 0.03;
+    } else if (dist < 0.3) {
+      a.i = (a.i + 1) % a.pts.length;
+      a.wait = 2.5 + Math.random() * 4.5;
+    } else {
+      // Идёт к следующей точке — корпус в сторону движения, шаг читается бобингом.
+      p.x += dx / dist * a.speed * dt;
+      p.z += dz / dist * a.speed * dt;
+      p.y = a.y + Math.abs(Math.sin(t * 6 + a.phase)) * 0.045;
+      a.fig.rotation.y = Math.atan2(dx, dz);
+      a.fig.rotation.z = Math.sin(t * 6 + a.phase) * 0.04;
+    }
+
+    // Голова следит за игроком ближе 6 м — агент «замечает» входящего.
+    const pd = Math.hypot(camera.position.x - p.x, camera.position.z - p.z);
+    if (pd < 6 && Math.abs(camera.position.y - (a.y + 1.7)) < 4) {
+      const want = Math.atan2(camera.position.x - p.x, camera.position.z - p.z) - a.fig.rotation.y;
+      const wrapped = Math.atan2(Math.sin(want), Math.cos(want));
+      a.head.rotation.y += (THREE.MathUtils.clamp(wrapped, -1.1, 1.1) - a.head.rotation.y) * Math.min(1, dt * 6);
+    } else {
+      a.head.rotation.y += (0 - a.head.rotation.y) * Math.min(1, dt * 3);
+    }
+    // Табличка всегда к наблюдателю.
+    a.tag.rotation.y = Math.atan2(camera.position.x - p.x, camera.position.z - p.z) - a.fig.rotation.y;
+  }
+}
+
 /* Лестница: пандус со ступенями. Ступени — только декор, ходьба идёт
    по аналитической высоте (groundAt), поэтому подъём всегда плавный. */
 const STEPS = 18;
@@ -1048,6 +1167,7 @@ function animate() {
   react();
   const t = clock.elapsedTime;
   for (const fn of animated) fn(t);
+  tickAgents(dt, t);
   clockEl.textContent = new Date().toLocaleTimeString('ru-RU');
   composer.render();
 }
