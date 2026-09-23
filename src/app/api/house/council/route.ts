@@ -98,6 +98,8 @@ export const POST = withRole(
     const prompt = `${CONTEXT}\n\nВопрос: ${question}`;
 
     const jobs: Promise<MemberResult>[] = [];
+    const background: Promise<void>[] = [];
+    const serialResults: MemberResult[] = [];
     if (process.env.PERPLEXITY_API_KEY) {
       jobs.push(askOpenAICompat(
         "SONAR", "https://api.perplexity.ai",
@@ -106,16 +108,29 @@ export const POST = withRole(
     if (process.env.GEMINI_API_KEY) jobs.push(askGemini(prompt));
 
     // Open-модели через локальный FreeLLMAPI-шлюз (бесплатный, :3001).
+    // У free-апстримов общий рейт-лимит ~2 мин между запросами — вызываем
+    // членов последовательно с паузой, иначе все после первого словят 429.
     const flUrl = process.env.FREELLMAPI_BASE_URL ?? "http://127.0.0.1:3001/v1";
     const flKey = process.env.FREELLMAPI_API_KEY;
     if (flKey) {
-      for (const [label, model] of [
+      // FUSION — собственная панель шлюза: несколько моделей + судья
+      // одним вызовом; NEMOTRON — тяжёлая одиночная. FUSION первым —
+      // ценнее всего, пока лимит апстрима не съеден.
+      const flMembers = [
+        ["FUSION", "fusion"],
         ["NEMOTRON", "nemotron-3-ultra-550b"],
-        ["QWEN", "qwen3.6-27b"],
-        ["GPT-OSS", "gpt-oss-120b"],
-      ] as const) {
-        jobs.push(askOpenAICompat(label, flUrl, flKey, model, prompt));
-      }
+      ] as const;
+      const FL_GAP_MS = 75_000;
+      background.push(
+        (async () => {
+          for (const [i, [label, model]] of flMembers.entries()) {
+            if (i > 0) await new Promise((r) => setTimeout(r, FL_GAP_MS));
+            serialResults.push(
+              await askOpenAICompat(label, flUrl, flKey, model, prompt),
+            );
+          }
+        })(),
+      );
     }
 
     // OmniRoute-шлюз (:20128) — когда у upstream-провайдеров прописаны ключи.
@@ -126,14 +141,18 @@ export const POST = withRole(
         "OMNI", omUrl, omKey, process.env.OMNIROUTE_MODEL, prompt));
     }
 
-    if (!jobs.length) {
+    if (!jobs.length && !background.length) {
       return NextResponse.json(
         { error: "Нет ни одного ключа совета" },
         { status: 503 },
       );
     }
 
-    const responses = await Promise.all(jobs);
+    const [direct] = await Promise.all([
+      Promise.all(jobs),
+      Promise.all(background),
+    ]);
+    const responses = [...direct, ...serialResults];
     const answered = responses.filter((r) => r.content);
 
     // Председатель собирает консенсус: Gemini как дежурный chairman.
