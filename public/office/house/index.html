@@ -211,9 +211,9 @@ for (const dep of DEPARTMENTS) dep.mod = moduleByRoom(dep.id);
 
 /* ---------- Сцена ---------- */
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x05080b, 0.011);
+scene.fog = new THREE.FogExp2(0x05080b, 0.005);
 
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 1600);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -693,11 +693,14 @@ function room(dep) {
   const doorSide = dep.row === -1 ? 1 : -1; // дверь всегда в коридор
   const side = (ROOM - DOOR) / 2;
 
-  wall(x0, y, z0 - doorSide * HALF, ROOM, WALL, dep.hue);              // глухая стена
-  wall(x0 - HALF, y, z0, WALL, ROOM, dep.hue);
-  wall(x0 + HALF, y, z0, WALL, ROOM, dep.hue);
-  wall(x0 - (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue);
-  wall(x0 + (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue);
+  // Стены отдела привязаны к нему — диспетчер меняет их цвет по статусу работ.
+  [
+    wall(x0, y, z0 - doorSide * HALF, ROOM, WALL, dep.hue),            // глухая стена
+    wall(x0 - HALF, y, z0, WALL, ROOM, dep.hue),
+    wall(x0 + HALF, y, z0, WALL, ROOM, dep.hue),
+    wall(x0 - (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue),
+    wall(x0 + (DOOR / 2 + side / 2), y, z0 + doorSide * HALF, side, WALL, dep.hue),
+  ].forEach(w => w.userData.dep = dep);
 
   // Пол-подсветка отдела: видно, где стоишь, и куда идти дальше.
   // В чилауте её нет — иначе пол под зеленью уходит в цветную заливку.
@@ -844,7 +847,12 @@ function spawnAgents(dep) {
     if (!pts.length) pts.push(new THREE.Vector3(x0 + 3, 0, z0 + 3));
 
     const a = {
-      fig, head: fig.userData.head, tag, pts, y,
+      fig, head: fig.userData.head, tag, pts, y, dep,
+      // Рабочая точка у терминала: сюда агент уходит, когда диспетчер
+      // ставит задачу его отделу.
+      desk: new THREE.Vector3(cx + (i ? 1.7 : -1.7), 0, cz + 1.6),
+      kiosk: new THREE.Vector3(cx, 0, cz),
+      primary: i === 0,
       i: Math.floor(Math.random() * pts.length),
       wait: Math.random() * 3 + i,
       speed: 1.1 + Math.random() * 0.5,
@@ -858,16 +866,20 @@ DEPARTMENTS.forEach(spawnAgents);
 
 function tickAgents(dt, t) {
   for (const a of agents) {
-    const target = a.pts[a.i];
+    // Отдел в работе — ведущий агент сидит у терминала, остальные патрулируют.
+    const working = a.primary && a.dep.status === 'work';
+    const target = working ? a.desk : a.pts[a.i];
     const p = a.fig.position;
     const dx = target.x - p.x, dz = target.z - p.z;
     const dist = Math.hypot(dx, dz);
 
-    if (a.wait > 0) {
+    if (a.wait > 0 || (working && dist < 0.3)) {
       // «Печатает» на месте: дыхание и лёгкое покачивание корпуса.
-      a.wait -= dt;
+      if (a.wait > 0) a.wait -= dt;
       p.y = a.y + Math.sin(t * 2.2 + a.phase) * 0.02;
       a.fig.rotation.z = Math.sin(t * 1.4 + a.phase) * 0.03;
+      // У терминала смотрит на экран, а не в сторону движения.
+      if (working) a.fig.rotation.y += (Math.atan2(a.kiosk.x - p.x, a.kiosk.z - p.z) - a.fig.rotation.y) * Math.min(1, dt * 4);
     } else if (dist < 0.3) {
       a.i = (a.i + 1) % a.pts.length;
       a.wait = 2.5 + Math.random() * 4.5;
@@ -893,6 +905,98 @@ function tickAgents(dt, t) {
     a.tag.rotation.y = Math.atan2(camera.position.x - p.x, camera.position.z - p.z) - a.fig.rotation.y;
   }
 }
+
+/* ---------- Диспетчер и статусные стены ----------
+   ДИСПЕТЧЕР-00 стоит на ресепшне и раздаёт задачи: отдел получает задачу —
+   его стены разгораются рабочим цветом, ведущий агент уходит к терминалу;
+   задача сделана — стены вспыхивают зелёным и гаснут до дежурного тона.
+   Просрочка из живых метрик красит отдел в красный. */
+const STATUS_HUE = { idle: null, work: null, done: 0x2bff88, alert: 0xff4d5e };
+function statusHue(dep) {
+  if (dep.status === 'alert') return STATUS_HUE.alert;
+  if (dep.status === 'done') return STATUS_HUE.done;
+  return dep.hue;
+}
+
+const TASKS = {
+  reception:  ['разбор входящих обращений', 'ответы в Instagram', 'запись на консультацию'],
+  sales:      ['обзвон горячих лидов', 'квалификация базы', 'выставление счетов', 'дожим по оплате'],
+  marketing:  ['тест креативов', 'запуск рекламной кампании', 'разбор CTR', 'контент-план недели'],
+  warehouse:  ['сверка остатков', 'приём поставки', 'отгрузка заказов'],
+  accounting: ['сверка прихода', 'закрытие дебиторки', 'подготовка налоговой'],
+  admin:      ['распределение задач', 'контроль смен', 'разбор просрочек'],
+  director:   ['approve рассылки', 'обзор воронки', 'решение по риску №1'],
+  chill:      ['пауза на кофе'],
+};
+for (const dep of DEPARTMENTS) { dep.status = 'idle'; dep.task = '—'; }
+
+/* Голограмма-борд над терминалом ресепшна: кто сейчас на задаче. */
+const boardCnv = document.createElement('canvas');
+boardCnv.width = 1024; boardCnv.height = 512;
+const boardCtx = boardCnv.getContext('2d');
+const boardTex = new THREE.CanvasTexture(boardCnv);
+const board = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 3.75),
+  new THREE.MeshBasicMaterial({ map: boardTex, transparent: true, opacity: 0.94 }));
+{
+  const rx = COL, rz = ROWZ; // ресепшн: floor 0, col 1, row 1
+  board.position.set(rx, 5.1, rz);
+  scene.add(board);
+  animated.push(() => {
+    board.rotation.y = Math.atan2(camera.position.x - rx, camera.position.z - rz);
+  });
+}
+function drawBoard() {
+  const g = boardCtx;
+  g.clearRect(0, 0, 1024, 512);
+  g.fillStyle = 'rgba(4,12,12,0.92)'; g.fillRect(0, 0, 1024, 512);
+  g.strokeStyle = '#00ffcc'; g.lineWidth = 5; g.strokeRect(4, 4, 1016, 504);
+  g.font = 'bold 40px "Segoe UI", sans-serif'; g.fillStyle = '#00ffcc';
+  g.fillText('ДИСПЕТЧЕР-00 · РАЗДАЧА ЗАДАЧ', 34, 58);
+  g.font = '30px "Segoe UI", sans-serif';
+  let yy = 118;
+  const STATUS_TXT = { idle: 'ожидает', work: 'В РАБОТЕ', done: 'готово', alert: 'ПРОСРОЧКА' };
+  const STATUS_COL = { idle: '#5d7070', work: '#00ffcc', done: '#2bff88', alert: '#ff4d5e' };
+  for (const dep of DEPARTMENTS) {
+    if (dep.lounge) continue;
+    g.fillStyle = STATUS_COL[dep.status];
+    g.fillRect(34, yy - 22, 14, 14);
+    g.fillStyle = '#d7e4e4';
+    g.fillText(dep.name, 62, yy - 8);
+    g.fillStyle = STATUS_COL[dep.status];
+    g.fillText(dep.status === 'work' ? dep.task : STATUS_TXT[dep.status], 560, yy - 8);
+    yy += 52;
+  }
+  boardTex.needsUpdate = true;
+}
+drawBoard();
+
+/* Цикл диспетчера: задача → работа → готово → следующий отдел. */
+let dispatchTimer = 0, doneTimer = 0;
+function dispatch() {
+  const ready = DEPARTMENTS.filter(d => !d.lounge && d.status === 'idle');
+  if (!ready.length) return;
+  const dep = ready[Math.floor(Math.random() * ready.length)];
+  const pool = TASKS[dep.id] ?? ['задача'];
+  dep.task = pool[Math.floor(Math.random() * pool.length)];
+  dep.status = 'work';
+  dep.workLeft = 7 + Math.random() * 6;
+  drawBoard();
+}
+function tickDispatch(dt) {
+  dispatchTimer -= dt;
+  if (dispatchTimer <= 0) { dispatch(); dispatchTimer = 9 + Math.random() * 5; }
+  for (const dep of DEPARTMENTS) {
+    if (dep.status === 'work') {
+      dep.workLeft -= dt;
+      if (dep.workLeft <= 0) { dep.status = 'done'; dep.doneLeft = 4; drawBoard(); }
+    } else if (dep.status === 'done') {
+      dep.doneLeft -= dt;
+      if (dep.doneLeft <= 0) { dep.status = 'idle'; dep.task = '—'; drawBoard(); }
+    }
+  }
+}
+/* Стартовая раздача — дом оживает сразу после входа. */
+dispatch(); dispatch();
 
 /* Лестница: пандус со ступенями. Ступени — только декор, ходьба идёт
    по аналитической высоте (groundAt), поэтому подъём всегда плавный. */
@@ -930,13 +1034,111 @@ for (const y of [0, LIFT]) {
   }
 }
 
-/* Периметр: снизу полный, сверху с обрывом у лестничного проёма. */
+/* Периметр — витраж: сплошное стекло в металлической обвязке, за ним
+   предгорье и город. Коллайдер остаётся — через стекло выйти нельзя. */
+const GLASS_MAT = new THREE.MeshPhysicalMaterial({
+  color: 0xa8d8e8, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.14,
+  side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.8,
+  clearcoat: 1, clearcoatRoughness: 0.06,
+});
+const MULLION_MAT = new THREE.MeshStandardMaterial({
+  color: 0x1a222b, roughness: 0.4, metalness: 0.85,
+});
+function glassWall(cx, y, cz, w, d) {
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), GLASS_MAT);
+  glass.position.set(cx, y + H / 2, cz);
+  scene.add(glass);
+  colliders.push(new THREE.Box3().setFromObject(glass));
+
+  // Мулльоны каждые ~7 м + поручень и верхняя балка — ритм витража.
+  const alongX = w > d, len = Math.max(w, d);
+  const post = new THREE.BoxGeometry(alongX ? 0.18 : w + 0.08, H, alongX ? d + 0.08 : 0.18);
+  for (let off = -len / 2; off <= len / 2 + 0.01; off += 7) {
+    const m = new THREE.Mesh(post, MULLION_MAT);
+    m.position.set(cx + (alongX ? off : 0), y + H / 2, cz + (alongX ? 0 : off));
+    scene.add(m);
+  }
+  for (const ry of [0.9, H - 0.3]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(alongX ? w : w + 0.1, 0.14, alongX ? d + 0.1 : d),
+      MULLION_MAT);
+    rail.position.set(cx, y + ry, cz);
+    scene.add(rail);
+  }
+}
 for (const y of [0, LIFT]) {
   const x1 = y === 0 ? PLAN_X1 : RAMP_X0;
-  wall((PLAN_X0 + x1) / 2, y, -PLAN_Z, x1 - PLAN_X0, WALL);
-  wall((PLAN_X0 + x1) / 2, y, PLAN_Z, x1 - PLAN_X0, WALL);
-  wall(PLAN_X0, y, 0, WALL, PLAN_Z * 2);
-  wall(x1, y, 0, WALL, PLAN_Z * 2);
+  glassWall((PLAN_X0 + x1) / 2, y, -PLAN_Z, x1 - PLAN_X0, WALL);
+  glassWall((PLAN_X0 + x1) / 2, y, PLAN_Z, x1 - PLAN_X0, WALL);
+  glassWall(PLAN_X0, y, 0, WALL, PLAN_Z * 2);
+  glassWall(x1, y, 0, WALL, PLAN_Z * 2);
+}
+
+/* ---------- Локация: предгорье, зелень вокруг, город вдали ----------
+   Дом стоит на зелёном плато: холмы и сканы деревьев кольцом, на юге —
+   светящийся силуэт мегаполиса, на севере — тёмные горы. */
+{
+  const land = new THREE.Mesh(new THREE.CircleGeometry(1400, 48),
+    new THREE.MeshStandardMaterial({ color: 0x0b1a10, roughness: 1 }));
+  land.rotation.x = -Math.PI / 2;
+  land.position.y = -0.6;
+  scene.add(land);
+
+  // Предгорья — мягкие зелёные валы вокруг плато, чуть светятся изнутри,
+  // чтобы зелень читалась и ночью.
+  const hillMat = new THREE.MeshStandardMaterial({ color: 0x10251a, roughness: 0.95,
+    flatShading: true, emissive: 0x0d2416, emissiveIntensity: 0.5 });
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2 + Math.random() * 0.4;
+    const r = 220 + Math.random() * 320;
+    const h = 26 + Math.random() * 60;
+    const hill = new THREE.Mesh(new THREE.ConeGeometry(h * (1.4 + Math.random()), h, 7), hillMat);
+    hill.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r);
+    hill.rotation.y = Math.random() * Math.PI;
+    scene.add(hill);
+  }
+  // Горы на севере — выше и темнее.
+  const mntMat = new THREE.MeshStandardMaterial({ color: 0x0a1016, roughness: 1, flatShading: true });
+  for (let i = 0; i < 5; i++) {
+    const h = 180 + Math.random() * 160;
+    const mnt = new THREE.Mesh(new THREE.ConeGeometry(h * 1.2, h, 4), mntMat);
+    mnt.position.set(-350 + i * 260 + Math.random() * 80, h / 2 - 4, -560 - Math.random() * 160);
+    scene.add(mnt);
+  }
+  // Город на юге: ряд башен с тёплым светом окон — «вид на мегаполис».
+  const cityMat = new THREE.MeshStandardMaterial({ color: 0x0c1119, roughness: 0.7, metalness: 0.4,
+    emissive: 0x33506b, emissiveIntensity: 0.8 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xffc98a });
+  for (let i = 0; i < 34; i++) {
+    const w = 10 + Math.random() * 22, h = 26 + Math.random() * 110;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), cityMat);
+    const bx = -420 + i * 26 + Math.random() * 14;
+    const bz = 380 + Math.random() * 180;
+    b.position.set(bx, h / 2, bz);
+    scene.add(b);
+    if (Math.random() < 0.55) { // световая мачта/антенна на крыше
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 8), glowMat);
+      tip.position.set(bx, h + 1.2, bz);
+      scene.add(tip);
+    }
+  }
+  // Зарево мегаполиса за линией башен — город читается даже в темноте.
+  const cityGlow = new THREE.Mesh(new THREE.PlaneGeometry(1000, 120),
+    new THREE.MeshBasicMaterial({ color: 0x1b3550, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, depthWrite: false }));
+  cityGlow.position.set(0, 46, 560);
+  cityGlow.rotation.y = Math.PI; // свечение смотрит на дом
+  scene.add(cityGlow);
+  // Зелень вплотную к стеклу: сканы деревьев и кустов кольцом по периметру.
+  const trees = ['island_tree_02', 'pachira_aquatica_01', 'shrub_04', 'fern_02'];
+  for (let i = 0; i < 22; i++) {
+    const a = i / 22 * Math.PI * 2 + Math.random() * 0.25;
+    const r = 52 + Math.random() * 90;
+    const tx = Math.cos(a) * r, tz = Math.sin(a) * r;
+    if (tx > PLAN_X0 - 6 && tx < PLAN_X1 + 6 && Math.abs(tz) < PLAN_Z + 6) continue;
+    const kind = trees[i % trees.length];
+    plant(kind, tx, -0.5, tz, kind === 'island_tree_02' ? 9 + Math.random() * 5 : 1.2 + Math.random() * 2.6);
+  }
 }
 // Ограждение проёма второго этажа: пройти можно только через лестницу.
 for (const sgn of [-1, 1]) {
@@ -1014,15 +1216,22 @@ function move(dt) {
   floorTag.innerHTML = `<b>${g > LIFT / 2 ? 2 : 1}</b>ЭТАЖ`;
 }
 
-/* ---------- Реактивные стены: цвет отдела разгорается на подходе ---------- */
-function react() {
+/* ---------- Реактивные стены: цвет отдела = статус работ диспетчера ---------- */
+function react(t) {
   const p = camera.position;
   for (const m of reactive) {
+    const dep = m.userData.dep;
     const d = m.position.distanceTo(p);
     const k = THREE.MathUtils.clamp((REACT_FAR - d) / (REACT_FAR - REACT_NEAR), 0, 1);
+    if (dep) m.material.emissive.setHex(statusHue(dep));
     // Мягко, чтобы бетон оставался бетоном: подсветка добавляется в тон,
-    // а не заливает стену ровным цветом.
-    m.material.emissiveIntensity = 0.16 * k * k;
+    // а не заливает стену ровным цветом. Отдел в работе светится сам,
+    // просрочка пульсирует красным.
+    let glow = 0.16 * k * k;
+    if (dep?.status === 'work') glow += 0.05 + 0.03 * Math.sin(t * 2.4);
+    if (dep?.status === 'done') glow += 0.1;
+    if (dep?.status === 'alert') glow += 0.08 + 0.07 * Math.sin(t * 5);
+    m.material.emissiveIntensity = glow;
     m.material.color.setHex(0x2a3238).lerp(m.material.emissive, 0.1 * k);
   }
 }
@@ -1131,6 +1340,16 @@ function applyLiveMetrics(m) {
     ['Средний чек', money(m.revenue.avgTicket)],
     ['Клиентов в базе', m.clients.total]];
 
+  // Живые данные задают реальные статусы: просрочка красит отдел в красный,
+  // заявки в работе — отдел продаж сразу «в работе».
+  if (m.appointments.overdue) dept('admin').status = 'alert';
+  if (m.appointments.pending || m.appointments.confirmed) {
+    dept('sales').status = 'work';
+    dept('sales').task = 'обработка записей';
+    dept('sales').workLeft = 60;
+  }
+  drawBoard();
+
   document.getElementById('stat').textContent =
     'отделов: 7 · чилаут: 1 · этажей: 2 · данные из CRM';
   const open = DEPARTMENTS.find(
@@ -1164,10 +1383,11 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (controls.isLocked) { move(dt); pick(); } else { lookEl.textContent = ''; }
-  react();
   const t = clock.elapsedTime;
+  react(t);
   for (const fn of animated) fn(t);
   tickAgents(dt, t);
+  tickDispatch(dt);
   clockEl.textContent = new Date().toLocaleTimeString('ru-RU');
   composer.render();
 }
