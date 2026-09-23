@@ -486,7 +486,7 @@ function councilRoom(dep, x0, y, z0) {
     }
     const roster = live?.responses
       ? live.responses.map(r => r.content ? r.label + ' ✓' : r.label + ' ✗').join(' · ')
-      : 'CLAUDE · SONAR · GEMINI · DEEPSEEK · ДЖАРВИС';
+      : 'SONAR · GEMINI · NEMOTRON · QWEN · ДЖАРВИС';
     g.fillStyle = '#8f7ab8';
     g.fillText(roster, 36, 330);
     tex.needsUpdate = true;
@@ -912,7 +912,7 @@ const AGENT_NAMES = {
   accounting: ['БУХ-БОТ'],
   admin:      ['ДИСПЕТЧЕР-00'],
   chill:      ['БАРИСТА'],
-  council:    ['CLAUDE', 'SONAR', 'GEMINI', 'DEEPSEEK', 'ДЖАРВИС'],
+  council:    ['SONAR', 'GEMINI', 'NEMOTRON', 'QWEN', 'ДЖАРВИС'],
   director:   ['ДЖАРВИС'],
 };
 
