@@ -79,6 +79,12 @@
   <h2 id="c-title">Отдел</h2>
   <div class="sub" id="c-sub"></div>
   <table id="c-rows"></table>
+  <div id="c-council" hidden style="margin:12px 0;display:flex;gap:8px">
+    <input id="c-q" type="text" maxlength="300" placeholder="вопрос совету моделей…"
+      style="flex:1;background:#0a1418;border:1px solid #b98cff55;color:#e8dcff;
+             padding:8px 10px;font:inherit;font-size:13px;outline:none">
+    <button id="c-ask" style="letter-spacing:1px">СОЗВАТЬ</button>
+  </div>
   <footer>
     <span class="note" id="c-note"></span>
     <span style="display:flex;gap:8px">
@@ -234,7 +240,10 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 // Отладочный доступ для скриншот-тестов и будущего WebXR-контроллера.
-window.__house = { camera, scene };
+window.__house = { camera, scene,
+  openCard: dep => openCard(typeof dep === 'string' ? dept(dep) : dep),
+  dept: id => dept(id),
+  askCouncil: q => { qEl.value = q; return askCouncil(); } };
 
 /* Материалы — фотосканы, а не цвета: бетон, глазурованная чешуя и вырезанные
    по альфе снимки живой зелени. */
@@ -400,7 +409,20 @@ const COUNCIL_Q = [
   'кого усиливать первым: продажи или маркетинг?',
   'как упаковать дом в SaaS-подписку?',
 ];
-const councilState = { qi: 0, phase: 'разбор', timer: 0 };
+const councilState = { qi: 0, phase: 'разбор', timer: 0, live: null, doneCount: 0 };
+function wrapText(g, text, x, y, maxW, lineH, maxLines) {
+  const words = String(text).replace(/\s+/g, ' ').split(' ');
+  let line = '', lines = 0;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (g.measureText(test).width > maxW && line) {
+      g.fillText(line, x, y + lines * lineH);
+      if (++lines >= maxLines) return;
+      line = w;
+    } else line = test;
+  }
+  if (line && lines < maxLines) g.fillText(line, x, y + lines * lineH);
+}
 function councilRoom(dep, x0, y, z0) {
   // Стол: тёмный диск с подсвеченной кромкой и кольцом мест.
   const table = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 3.1, 0.16, 48),
@@ -445,15 +467,28 @@ function councilRoom(dep, x0, y, z0) {
     g.font = 'bold 34px "Segoe UI", sans-serif'; g.fillStyle = '#b98cff';
     g.fillText('СОВЕТ МОДЕЛЕЙ · ' + councilState.phase.toUpperCase(), 36, 58);
     g.font = '30px "Segoe UI", sans-serif'; g.fillStyle = '#e8dcff';
-    const q = COUNCIL_Q[councilState.qi];
-    g.fillText('«' + q + '»', 36, 128);
+    const live = councilState.live;
+    const q = live?.q ?? COUNCIL_Q[councilState.qi];
+    g.fillText('«' + q.slice(0, 52) + (q.length > 52 ? '…' : '') + '»', 36, 128);
     g.font = '26px "Segoe UI", sans-serif'; g.fillStyle = '#8f7ab8';
     const PHASES = { 'разбор': 'модели отвечают независимо…',
                      'спор':   'перекрёстная критика и доводы…',
                      'синтез': 'председатель собирает решение…',
                      'готово': 'решение принято — на стол владельцу' };
-    g.fillText(PHASES[councilState.phase] || '', 36, 190);
-    g.fillText('CLAUDE · SONAR · GEMINI · DEEPSEEK · ДЖАРВИС', 36, 330);
+    if (live?.error) {
+      g.fillStyle = '#ff4d5e';
+      g.fillText('совет недоступен: ' + String(live.error).slice(0, 60), 36, 190);
+    } else if (councilState.phase === 'готово' && live?.synthesis) {
+      g.fillStyle = '#d9ffe8';
+      wrapText(g, live.synthesis, 36, 186, 950, 34, 3);
+    } else {
+      g.fillText(PHASES[councilState.phase] || '', 36, 190);
+    }
+    const roster = live?.responses
+      ? live.responses.map(r => r.content ? r.label + ' ✓' : r.label + ' ✗').join(' · ')
+      : 'CLAUDE · SONAR · GEMINI · DEEPSEEK · ДЖАРВИС';
+    g.fillStyle = '#8f7ab8';
+    g.fillText(roster, 36, 330);
     tex.needsUpdate = true;
   }
   drawCouncil();
@@ -1077,6 +1112,7 @@ function dispatch() {
   dep.task = pool[Math.floor(Math.random() * pool.length)];
   dep.status = 'work';
   dep.workLeft = 7 + Math.random() * 6;
+  dep.workTotal = dep.workLeft;
   drawBoard();
 }
 function tickDispatch(dt) {
@@ -1096,12 +1132,14 @@ function tickDispatch(dt) {
   const cd = DEPARTMENTS.find(d => d.id === 'council');
   if (cd && councilState.draw) {
     if (cd.status === 'work') {
-      const f = ['разбор', 'спор', 'синтез'][Math.min(2, Math.floor((1 - cd.workLeft / 13) * 3))];
+      const total = cd.workTotal || 13;
+      const f = ['разбор', 'спор', 'синтез'][Math.min(2, Math.max(0, Math.floor((1 - cd.workLeft / total) * 3)))];
       if (f !== councilState.phase) { councilState.phase = f; councilState.draw(); }
     } else if (cd.status === 'done' && councilState.phase !== 'готово') {
       councilState.phase = 'готово'; councilState.draw();
     } else if (cd.status === 'idle' && councilState.phase === 'готово') {
       councilState.qi = (councilState.qi + 1) % COUNCIL_Q.length;
+      councilState.live = null;
       councilState.phase = 'разбор'; councilState.draw();
     }
   }
@@ -1378,6 +1416,7 @@ function openCard(dep) {
   document.getElementById('c-title').textContent = dep.name;
   document.getElementById('c-sub').textContent = dep.sub;
   document.getElementById('c-note').textContent = dep.note ?? '';
+  document.getElementById('c-council').hidden = !dep.council;
   if (dep.mod) {
     openEl.hidden = false;
     openEl.href = ROOT + dep.mod.path;
@@ -1397,6 +1436,54 @@ window.closeCard = () => {
   card.style.display = 'none';
   controls.lock(); // возвращаем в дом, а не на стартовый экран
 };
+
+/* Реальный совет: вопрос владельца уходит в /api/house/council, модели
+   отвечают параллельно, консенсус председателя выводится на голограмму
+   над столом совещательной. Пока идёт ответ — комната в статусе работы. */
+const askEl = document.getElementById('c-ask');
+const qEl = document.getElementById('c-q');
+async function askCouncil() {
+  const q = qEl.value.trim();
+  if (!q || askEl.disabled) return;
+  askEl.disabled = true;
+  const cd = dept('council');
+  councilState.live = { q };
+  councilState.phase = 'разбор';
+  councilState.draw?.();
+  if (cd) {
+    cd.status = 'work';
+    cd.task = 'вопрос владельца: ' + q.slice(0, 38);
+    cd.workLeft = cd.workTotal = 40;
+    drawBoard();
+  }
+  window.closeCard();
+  try {
+    const res = await fetch('/api/house/council', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    councilState.live = { ...data, q };
+    councilState.phase = 'готово';
+    councilState.doneCount++;
+    if (cd) {
+      cd.status = 'done'; cd.doneLeft = 8; cd.task = '—';
+      cd.rows[3][1] = String(councilState.doneCount);
+    }
+  } catch (e) {
+    councilState.live = { q, error: e instanceof Error ? e.message : String(e) };
+    councilState.phase = 'готово';
+    if (cd) { cd.status = 'alert'; cd.task = '—'; }
+  }
+  councilState.draw?.();
+  drawBoard();
+  qEl.value = '';
+  askEl.disabled = false;
+}
+askEl.onclick = askCouncil;
+qEl.addEventListener('keydown', e => { if (e.key === 'Enter') askCouncil(); e.stopPropagation(); });
 
 /* ---------- Живые показатели компании из CRM ----------
    Дом раздаётся и как статика внутри приложения (там ручка отвечает), и как
