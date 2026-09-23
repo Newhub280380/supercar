@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { and, gt, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { getSearchParam } from "@/lib/api/request";
@@ -29,6 +30,9 @@ function trimmed(value: unknown, max: number): string | null {
 function isInbound(message: WazzupMessage): boolean {
   return message.isEcho !== true && message.status === "inbound";
 }
+
+/** Окно, внутри которого повторная доставка того же сообщения считается дублем. */
+const DEDUP_WINDOW_MS = 10 * 60 * 1000;
 
 /**
  * Приём событий Wazzup: входящее сообщение клиента становится лидом.
@@ -68,9 +72,31 @@ export const POST = withErrorHandling(
       ];
     });
 
-    if (rows.length > 0) await db.insert(leads).values(rows);
+    // Дедупликация: Wazzup может прислать то же сообщение повторно (ретрай,
+    // переподписка), а параллельный канал через HUB — тот же текст ещё раз.
+    // Если за последние 10 минут уже есть лид с тем же контактом и текстом — пропускаем.
+    let fresh = rows;
+    if (rows.length > 0) {
+      const contacts = [...new Set(rows.map((row) => row.contact))];
+      const recent = await db
+        .select({ contact: leads.contact, incoming: leads.incoming })
+        .from(leads)
+        .where(
+          and(
+            gt(leads.createdAt, new Date(Date.now() - DEDUP_WINDOW_MS)),
+            inArray(leads.contact, contacts),
+          ),
+        );
+      const seen = new Set(recent.map((row) => `${row.contact}\n${row.incoming}`));
+      fresh = rows.filter((row) => !seen.has(`${row.contact}\n${row.incoming}`));
+    }
 
-    return NextResponse.json({ accepted: rows.length });
+    if (fresh.length > 0) await db.insert(leads).values(fresh);
+
+    return NextResponse.json({
+      accepted: fresh.length,
+      deduped: rows.length - fresh.length,
+    });
   },
 );
 
