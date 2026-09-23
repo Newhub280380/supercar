@@ -4,9 +4,11 @@ import { MANAGER_ROLES } from "@/lib/auth";
 
 /**
  * Совет моделей для комнаты «СОВЕЩАТЕЛЬНАЯ» в 3D-доме: вопрос владельца
- * уходит параллельно всем настроенным LLM-членам совета, затем председатель
- * собирает консенсус. Каждый член включается своим env-ключом — совет
- * работает на тех моделях, что есть, и не падает из-за отсутствующих.
+ * уходит параллельно всем членам совета, председатель собирает консенсус.
+ *
+ * Члены — через OpenAI-совместимые шлюзы: прямой Perplexity, прямой Gemini
+ * и локальный FreeLLMAPI (:3001), который бесплатно раздаёт open-модели.
+ * Каждый член включается своим env-ключом — отсутствующий просто молчит.
  */
 const CONTEXT =
   "Контекст: виртуальная штаб-квартира компании Beauty Art — B2B-дистрибуция " +
@@ -21,18 +23,25 @@ interface MemberResult {
   latencyMs: number;
 }
 
-async function askPerplexity(question: string): Promise<MemberResult> {
+/** Универсальный вызов OpenAI-совместимого /chat/completions. */
+async function askOpenAICompat(
+  label: string,
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  prompt: string,
+): Promise<MemberResult> {
   const start = Date.now();
   try {
-    const res = await fetch("https://api.perplexity.ai/chat/completions", {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "sonar",
-        messages: [{ role: "user", content: `${CONTEXT}\n\nВопрос: ${question}` }],
+        model,
+        messages: [{ role: "user", content: prompt }],
         max_tokens: 512,
         temperature: 0.4,
       }),
@@ -40,13 +49,13 @@ async function askPerplexity(question: string): Promise<MemberResult> {
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
     return {
-      label: "SONAR",
-      model: "sonar",
+      label,
+      model: data.model ?? model,
       content: data.choices?.[0]?.message?.content ?? "",
       latencyMs: Date.now() - start,
     };
   } catch (e) {
-    return { label: "SONAR", model: "sonar", error: String(e), latencyMs: Date.now() - start };
+    return { label, model, error: String(e), latencyMs: Date.now() - start };
   }
 }
 
@@ -77,63 +86,6 @@ async function askGemini(prompt: string, label = "GEMINI"): Promise<MemberResult
   }
 }
 
-async function askOpenAI(question: string): Promise<MemberResult> {
-  const start = Date.now();
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-5-mini",
-        messages: [{ role: "user", content: `${CONTEXT}\n\nВопрос: ${question}` }],
-        max_completion_tokens: 512,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
-    return {
-      label: "GPT",
-      model: "gpt-5-mini",
-      content: data.choices?.[0]?.message?.content ?? "",
-      latencyMs: Date.now() - start,
-    };
-  } catch (e) {
-    return { label: "GPT", model: "gpt-5-mini", error: String(e), latencyMs: Date.now() - start };
-  }
-}
-
-async function askAnthropic(question: string): Promise<MemberResult> {
-  const start = Date.now();
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
-        max_tokens: 512,
-        messages: [{ role: "user", content: `${CONTEXT}\n\nВопрос: ${question}` }],
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
-    return {
-      label: "CLAUDE",
-      model: "claude-sonnet-4-6",
-      content: data.content?.[0]?.text ?? "",
-      latencyMs: Date.now() - start,
-    };
-  } catch (e) {
-    return { label: "CLAUDE", model: "claude-sonnet-4-6", error: String(e), latencyMs: Date.now() - start };
-  }
-}
-
 export const POST = withRole(
   "House council error",
   MANAGER_ROLES,
@@ -143,15 +95,40 @@ export const POST = withRole(
     if (!question) {
       return NextResponse.json({ error: "Пустой вопрос" }, { status: 400 });
     }
+    const prompt = `${CONTEXT}\n\nВопрос: ${question}`;
 
     const jobs: Promise<MemberResult>[] = [];
-    if (process.env.PERPLEXITY_API_KEY) jobs.push(askPerplexity(question));
-    if (process.env.GEMINI_API_KEY) jobs.push(askGemini(`${CONTEXT}\n\nВопрос: ${question}`));
-    if (process.env.OPENAI_API_KEY) jobs.push(askOpenAI(question));
-    if (process.env.ANTHROPIC_API_KEY) jobs.push(askAnthropic(question));
+    if (process.env.PERPLEXITY_API_KEY) {
+      jobs.push(askOpenAICompat(
+        "SONAR", "https://api.perplexity.ai",
+        process.env.PERPLEXITY_API_KEY, "sonar", prompt));
+    }
+    if (process.env.GEMINI_API_KEY) jobs.push(askGemini(prompt));
+
+    // Open-модели через локальный FreeLLMAPI-шлюз (бесплатный, :3001).
+    const flUrl = process.env.FREELLMAPI_BASE_URL ?? "http://127.0.0.1:3001/v1";
+    const flKey = process.env.FREELLMAPI_API_KEY;
+    if (flKey) {
+      for (const [label, model] of [
+        ["NEMOTRON", "nemotron-3-ultra-550b"],
+        ["QWEN", "qwen3.6-27b"],
+        ["GPT-OSS", "gpt-oss-120b"],
+      ] as const) {
+        jobs.push(askOpenAICompat(label, flUrl, flKey, model, prompt));
+      }
+    }
+
+    // OmniRoute-шлюз (:20128) — когда у upstream-провайдеров прописаны ключи.
+    const omUrl = process.env.OMNIROUTE_BASE_URL ?? "http://127.0.0.1:20128/v1";
+    const omKey = process.env.OMNIROUTE_API_KEY;
+    if (omKey && process.env.OMNIROUTE_MODEL) {
+      jobs.push(askOpenAICompat(
+        "OMNI", omUrl, omKey, process.env.OMNIROUTE_MODEL, prompt));
+    }
+
     if (!jobs.length) {
       return NextResponse.json(
-        { error: "Нет ни одного ключа совета (PERPLEXITY/GEMINI/OPENAI/ANTHROPIC)" },
+        { error: "Нет ни одного ключа совета" },
         { status: 503 },
       );
     }
