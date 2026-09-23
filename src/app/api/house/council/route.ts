@@ -117,15 +117,23 @@ export const POST = withRole(
     }
     // Контекст можно переопределить вопросом — для задач вне Beauty Art.
     const context = String(body?.context ?? "").trim().slice(0, 2000) || CONTEXT;
+    const debate = body?.mode === "debate";
     const prompt = `${context}\n\nВопрос: ${question}`;
 
-    const jobs: Promise<MemberResult>[] = [];
+    // Реестр членов совета: метка + вызов с произвольным промптом —
+    // так каждый раунд дебатов переиспользует тех же участников.
+    const members: { label: string; call: (p: string) => Promise<MemberResult> }[] = [];
     if (process.env.PERPLEXITY_API_KEY) {
-      jobs.push(askOpenAICompat(
-        "SONAR", "https://api.perplexity.ai",
-        process.env.PERPLEXITY_API_KEY, "sonar", prompt));
+      members.push({
+        label: "SONAR",
+        call: (p) => askOpenAICompat(
+          "SONAR", "https://api.perplexity.ai",
+          process.env.PERPLEXITY_API_KEY!, "sonar", p),
+      });
     }
-    if (process.env.GEMINI_API_KEY) jobs.push(askGemini(prompt));
+    if (process.env.GEMINI_API_KEY) {
+      members.push({ label: "GEMINI", call: (p) => askGemini(p) });
+    }
 
     // Open-модели через локальный FreeLLMAPI-шлюз (бесплатный, :3001).
     // Апстримы с раздельными лимитами: kilo отвечает параллельно,
@@ -140,7 +148,10 @@ export const POST = withRole(
         ["LLAMA-70B", "llama-3.3-70b"], // ovh — один на запрос
         ["AUTO", "auto"], // роутер шлюза: любой здоровый апстрим
       ] as const) {
-        jobs.push(askOpenAICompat(label, flUrl, flKey, model, prompt));
+        members.push({
+          label,
+          call: (p) => askOpenAICompat(label, flUrl, flKey, model, p),
+        });
       }
     }
 
@@ -158,11 +169,14 @@ export const POST = withRole(
         .map((pair) => pair.split(":"))
         .filter((p) => p.length === 2 && p[0] && p[1]);
       for (const [label, model] of piModels) {
+        const lb = label.trim();
+        const md = model.trim();
         // reasoning-модели (deepseek-pro, kimi-k3, glm) съедают бюджет
         // на размышления — даём больше токенов, иначе контент пустой.
-        jobs.push(
-          askOpenAICompat(label.trim(), piUrl, piKey, model.trim(), prompt, 2500),
-        );
+        members.push({
+          label: lb,
+          call: (p) => askOpenAICompat(lb, piUrl, piKey, md, p, 2500),
+        });
       }
     }
 
@@ -170,50 +184,119 @@ export const POST = withRole(
     const omUrl = process.env.OMNIROUTE_BASE_URL ?? "http://127.0.0.1:20128/v1";
     const omKey = process.env.OMNIROUTE_API_KEY;
     if (omKey && process.env.OMNIROUTE_MODEL) {
-      jobs.push(askOpenAICompat(
-        "OMNI", omUrl, omKey, process.env.OMNIROUTE_MODEL, prompt));
+      members.push({
+        label: "OMNI",
+        call: (p) => askOpenAICompat(
+          "OMNI", omUrl, omKey, process.env.OMNIROUTE_MODEL!, p),
+      });
     }
 
-    if (!jobs.length) {
+    if (!members.length) {
       return NextResponse.json(
         { error: "Нет ни одного ключа совета" },
         { status: 503 },
       );
     }
 
-    const responses = await Promise.all(jobs);
+    // Раунд 1 — предложения. В дебатах сразу предупреждаем: шаблонные
+    // ответы будут публично разнесены оппонентами.
+    const r1Prompt = debate
+      ? `${prompt}\n\n` +
+        "Это первый раунд дебатов. Дальше твой вариант разберут оппоненты. " +
+        "Шаблонные ответы («продай бота малому бизнесу», «фриланс», «дропшипинг») " +
+        "будут уничтожены — предлагай конкретное и неочевидное, с цифрами и механикой."
+      : prompt;
+    const responses = await Promise.all(members.map((m) => m.call(r1Prompt)));
     const answered = responses.filter((r) => r.content);
 
-    // Председатель собирает консенсус: Gemini дежурный, при сбое —
-    // роутер FreeLLMAPI (auto подбирает любой здоровый апстрим).
+    // Раунд 2 — перекрёстная критика: каждый топит чужие варианты.
+    let critiques: MemberResult[] = [];
+    if (debate && answered.length > 1) {
+      const pool = answered
+        .map((r, i) => `ВАРИАНТ ${String.fromCharCode(65 + i)} (${r.label}): ${r.content}`)
+        .join("\n\n");
+      critiques = await Promise.all(
+        members.map(async (m) => {
+          const own = responses.find((r) => r.label === m.label);
+          const others = answered.filter((r) => r.label !== m.label);
+          if (!others.length) {
+            return { label: m.label, model: "", latencyMs: 0 } as MemberResult;
+          }
+          const othersBrief = others
+            .map((r) => `ВАРИАНТ ${String.fromCharCode(65 + answered.indexOf(r))}: ${r.content}`)
+            .join("\n\n");
+          return m.call(
+            `Вопрос совета: «${question}»\n\n` +
+              `Чужие предложения:\n${othersBrief}\n\n` +
+              (own?.content ? `Твой вариант: ${own.content}\n\n` : "") +
+              "Ты оппонент на дебатах. По-русски, жёстко и по делу: " +
+              "1) назови ОДИН самый слабый чужой вариант (букву) и разнеси его " +
+              "конкретной причиной провала — цифры, механика, где он умрёт в реальности. " +
+              "2) назови ОДИН чужой вариант, который реально сильнее твоего (или честно " +
+              "скажи, что твой лучший и почему). Без лести и воды — 4–6 предложений.",
+          );
+        }),
+      );
+    }
+
+    // Раунд 3 — председатель выносит вердикт после критики.
+
+    // Председатель: в quick — консенсус; в debate — вердикт после боя.
     let synthesis = "";
     if (answered.length) {
       const brief = answered
         .map((r) => `— ${r.label}: ${r.content}`)
         .join("\n");
-      const chairPrompt =
-        `Вопрос владельца бизнеса: «${question}»\n\nОтветы членов совета:\n${brief}\n\n` +
-        "Ты председатель совета. Собери консенсус по-русски в 3–4 предложениях: " +
-        "общее решение, где модели расходятся, конкретный следующий шаг.";
+      const fight = critiques
+        .filter((c) => c.content)
+        .map((c) => `— ${c.label}: ${c.content}`)
+        .join("\n");
+      const chairPrompt = debate
+        ? `Вопрос владельца бизнеса: «${question}»\n\n` +
+          `Предложения совета:\n${brief}\n\n` +
+          `Перекрёстная критика оппонентов:\n${fight}\n\n` +
+          "Ты председатель-арбитр. По-русски, 5–7 предложений: " +
+          "1) назови ПОБЕДИТЕЛЯ дебатов (букву/метку) и почему его вариант пережил критику; " +
+          "2) одной строкой — главная причина провала каждого проигравшего; " +
+          "3) итоговый конкретный шаг. Если все варианты слабые — честно скажи и предложи свой."
+        : `Вопрос владельца бизнеса: «${question}»\n\nОтветы членов совета:\n${brief}\n\n` +
+          "Ты председатель совета. Собери консенсус по-русски в 3–4 предложениях: " +
+          "общее решение, где модели расходятся, конкретный следующий шаг.";
       let chair: MemberResult = { label: "CHAIRMAN", model: "", latencyMs: 0 };
+      const tryChair = async (fn: () => Promise<MemberResult>) => {
+        if (!chair.content) chair = await fn();
+      };
+      // В дебатах арбитром идёт Claude Opus 5 — не член совета, судит честно.
+      if (debate && piKey) {
+        await tryChair(() =>
+          askOpenAICompat("CHAIRMAN", piUrl, piKey, "anthropic/claude-opus-5",
+            chairPrompt, 2500));
+      }
       if (process.env.GEMINI_API_KEY) {
-        chair = await askGemini(chairPrompt, "CHAIRMAN");
+        await tryChair(() => askGemini(chairPrompt, "CHAIRMAN"));
       }
-      // Sonar — чистая проза без reasoning-дампов; auto — последний резерв.
-      if (!chair.content && process.env.PERPLEXITY_API_KEY) {
-        chair = await askOpenAICompat(
-          "CHAIRMAN", "https://api.perplexity.ai",
-          process.env.PERPLEXITY_API_KEY, "sonar", chairPrompt);
+      if (process.env.PERPLEXITY_API_KEY) {
+        await tryChair(() =>
+          askOpenAICompat("CHAIRMAN", "https://api.perplexity.ai",
+            process.env.PERPLEXITY_API_KEY!, "sonar", chairPrompt));
       }
-      if (!chair.content && flKey) {
-        chair = await askOpenAICompat("CHAIRMAN", flUrl, flKey, "auto", chairPrompt);
+      if (piKey) {
+        await tryChair(() =>
+          askOpenAICompat("CHAIRMAN", piUrl, piKey, "anthropic/claude-opus-5",
+            chairPrompt, 2500));
+      }
+      if (flKey) {
+        await tryChair(() =>
+          askOpenAICompat("CHAIRMAN", flUrl, flKey, "auto", chairPrompt));
       }
       synthesis = stripThinking(chair.content ?? "");
     }
 
     return NextResponse.json({
       question,
+      mode: debate ? "debate" : "quick",
       responses,
+      critiques: critiques.filter((c) => c.content || c.error),
       synthesis,
       quorum: answered.length,
     });
