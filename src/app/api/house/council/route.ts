@@ -66,8 +66,10 @@ async function askOpenAICompat(
     }
     if (!res.ok) throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
     const msg = data.choices?.[0]?.message ?? {};
+    // reasoning-модели: OpenRouter кладёт мысли в `reasoning`, остальные —
+    // в `reasoning_content`. Контент пуст — берём размышления как ответ.
     const content = stripThinking(msg.content ?? "") ||
-      stripThinking(msg.reasoning_content ?? "");
+      stripThinking(msg.reasoning_content ?? msg.reasoning ?? "");
     return {
       label,
       model: data.model ?? model,
@@ -178,6 +180,18 @@ export const POST = withRole(
           call: (p) => askOpenAICompat(lb, piUrl, piKey, md, p, 2500),
         });
       }
+    }
+
+    // OpenRouter — stealth/space-bunny-alpha: 1M-контекстная reasoning-модель,
+    // пока в бесплатной альфе. Поле reasoning ловится в askOpenAICompat.
+    const orKey = process.env.OPENROUTER_API_KEY;
+    if (orKey) {
+      members.push({
+        label: "BUNNY",
+        call: (p) => askOpenAICompat(
+          "BUNNY", "https://openrouter.ai/api/v1", orKey,
+          "stealth/space-bunny-alpha", p, 4000),
+      });
     }
 
     // OmniRoute-шлюз (:20128) — когда у upstream-провайдеров прописаны ключи.
