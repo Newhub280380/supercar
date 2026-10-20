@@ -130,6 +130,11 @@ describe("generateMockContent", () => {
 });
 
 describe("generateContent", () => {
+  beforeEach(() => {
+    // Тесты не должны зависеть от ключа, прокинутого в окружении машины.
+    delete process.env.OPENAI_API_KEY;
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     resetOpenAIClient();

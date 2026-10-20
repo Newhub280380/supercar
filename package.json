@@ -2,6 +2,9 @@
   "name": "convoy__ai-cosmetology-platform__95324118__gt__toast__5bb62bac",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
