@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Target,
   TrendingUp,
@@ -14,8 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  conversionGoalsData,
-  abTestsData,
   CONVERSION_TYPE_LABELS,
   AB_TEST_STATUS_LABELS,
   type ConversionGoalItem,
@@ -44,6 +42,23 @@ const AB_STATUS_COLORS: Record<AbTestStatus, string> = {
 
 export default function ConversionsPage() {
   const [activeTab, setActiveTab] = useState<"goals" | "ab">("goals");
+  const [conversionGoalsData, setGoals] = useState<ConversionGoalItem[]>([]);
+  const [abTestsData, setTests] = useState<AbTestItem[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/conversions")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!alive || !data) return;
+        setGoals(data.goals ?? []);
+        setTests(data.abTests ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -83,7 +98,7 @@ export default function ConversionsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {conversionGoalsData
+                {[...conversionGoalsData]
                   .sort((a, b) => {
                     const order: Record<ConversionGoalType, number> = { registration: 1, booking: 2, visit: 3 };
                     return order[a.type] - order[b.type];

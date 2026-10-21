@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   MessageSquare,
   Plus,
@@ -21,7 +21,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  smsCampaignsData,
   SMS_STATUS_LABELS,
   SMS_TYPE_LABELS,
   type SmsCampaignItem,
@@ -55,8 +54,45 @@ const TYPE_COLORS: Record<string, string> = {
 export default function SmsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [campaigns, setCampaigns] = useState<SmsCampaignItem[]>([]);
+  const [name, setName] = useState("");
+  const [content, setContent] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  const filteredCampaigns = smsCampaignsData.filter((c) =>
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/campaigns/sms")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (alive) setCampaigns(data?.campaigns ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const saveDraft = async () => {
+    setCreateError(null);
+    const res = await fetch("/api/campaigns/sms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, content }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setCreateError(data?.error ?? "Не удалось сохранить черновик");
+      return;
+    }
+    setCampaigns((current) => [data.campaign, ...current]);
+    setNotice(data.notice ?? null);
+    setName("");
+    setContent("");
+    setShowCreate(false);
+  };
+
+  const filteredCampaigns = campaigns.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
@@ -78,6 +114,11 @@ export default function SmsPage() {
         </Button>
       </div>
 
+      <p className="text-muted-foreground text-sm">
+        Отправка SMS не подключена: провайдер и ключ не заданы. Кампания
+        сохраняется как черновик в базе.
+      </p>
+      {notice && <p className="text-sm">{notice}</p>}
       <div className="space-y-3">
         {filteredCampaigns.map((campaign) => (
           <SmsCampaignCard key={campaign.id} campaign={campaign} />
@@ -95,6 +136,8 @@ export default function SmsPage() {
               <Input
                 placeholder="Например: Напоминание о записи"
                 className="mt-1"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
               />
             </div>
             <div>
@@ -109,6 +152,8 @@ export default function SmsPage() {
               <label className="text-sm font-medium">Текст SMS</label>
               <textarea
                 placeholder="Используйте {name}, {service}, {time}, {url} как переменные..."
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
                 className="border-input mt-1 min-h-24 w-full rounded-lg border bg-transparent px-2.5 py-2 text-sm"
               />
               <div className="text-muted-foreground mt-1 text-xs">
@@ -120,13 +165,16 @@ export default function SmsPage() {
               <label className="text-sm font-medium">Запланировать</label>
               <Input type="datetime-local" className="mt-1" />
             </div>
+            {createError && (
+              <p className="text-destructive text-sm">{createError}</p>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCreate(false)}>
                 Отмена
               </Button>
-              <Button onClick={() => setShowCreate(false)}>
+              <Button onClick={() => void saveDraft()}>
                 <Send className="size-4" />
-                Создать
+                Сохранить черновик
               </Button>
             </div>
           </div>

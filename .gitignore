@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local postgres data, if a tool writes it into the repo
+/data/
+
 # vercel
 .vercel
 

@@ -7,12 +7,29 @@ import { Button } from "@/components/ui/button";
 export function ContactForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
+    setError(null);
+    const form = new FormData(e.currentTarget);
+    const res = await fetch("/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.get("name"),
+        email: form.get("email"),
+        topic: form.get("topic"),
+        message: form.get("message"),
+      }),
+    });
+    const data = (await res.json().catch(() => null)) as { error?: string } | null;
     setLoading(false);
+    if (!res.ok) {
+      setError(data?.error ?? "Не удалось записать сообщение");
+      return;
+    }
     setSubmitted(true);
   }
 
@@ -23,10 +40,11 @@ export function ContactForm() {
           <CheckCircle className="size-7 text-sage" />
         </div>
         <h3 className="font-heading text-xl font-semibold">
-          Сообщение отправлено!
+          Сообщение записано
         </h3>
         <p className="text-sm text-muted-foreground">
-          Мы получили ваше сообщение и ответим в течение 24 часов.
+          Заявка сохранена в лидах CRM. Письмо само не уходит: почтовый ключ
+          для этой формы не используется.
         </p>
         <Button
           variant="outline"
@@ -103,9 +121,10 @@ export function ContactForm() {
         />
       </div>
 
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={loading} className="gap-2 self-end">
         <Send className="size-4" />
-        {loading ? "Отправка..." : "Отправить"}
+        {loading ? "Запись..." : "Записать заявку"}
       </Button>
     </form>
   );

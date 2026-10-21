@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,9 +11,12 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { appointmentsData, APPOINTMENT_STATUS_LABELS } from "@/lib/mock-data";
+import {
+  APPOINTMENT_STATUS_LABELS,
+  type AppointmentItem,
+} from "@/lib/mock-data";
 import type { AppointmentStatus } from "@/types";
-import { formatDate, toIsoDate } from "@/lib/format";
+import { formatDate, toLocalIsoDate } from "@/lib/format";
 
 type ViewMode = "week" | "day" | "list";
 
@@ -77,11 +80,29 @@ function parseTime(time: string): number {
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [appointmentsData, setAppointmentsData] = useState<AppointmentItem[]>(
+    [],
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "all">(
     "all",
   );
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/appointments")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (alive) setAppointmentsData(data?.appointments ?? []);
+      })
+      .catch(() => {
+        if (alive) setAppointmentsData([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
   const weekDays = useMemo(
@@ -108,7 +129,7 @@ export default function CalendarPage() {
       result = result.filter((a) => a.status === statusFilter);
     }
     return result;
-  }, [searchQuery, statusFilter]);
+  }, [appointmentsData, searchQuery, statusFilter]);
 
   const handlePrev = () => {
     const d = new Date(currentDate);
@@ -125,7 +146,7 @@ export default function CalendarPage() {
   const handleToday = () => setCurrentDate(new Date());
 
   const getAppointmentsForDay = (date: Date, hour: number) => {
-    const dateStr = toIsoDate(date);
+    const dateStr = toLocalIsoDate(date);
     return appointmentsData.filter(
       (a) =>
         a.date === dateStr &&
@@ -136,7 +157,7 @@ export default function CalendarPage() {
   };
 
   const allAppointmentsForDay = (date: Date) => {
-    const dateStr = toIsoDate(date);
+    const dateStr = toLocalIsoDate(date);
     return appointmentsData.filter((a) => a.date === dateStr);
   };
 
@@ -247,7 +268,7 @@ export default function CalendarPage() {
                   key={i}
                   className={cx(
                     "border-border/50 flex flex-col items-center gap-0.5 border-l p-2",
-                    toIsoDate(d) === toIsoDate() && "bg-primary/5",
+                    toLocalIsoDate(d) === toLocalIsoDate() && "bg-primary/5",
                   )}
                 >
                   <span className="text-muted-foreground text-[10px] font-medium">
@@ -256,7 +277,7 @@ export default function CalendarPage() {
                   <span
                     className={cx(
                       "flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                      toIsoDate(d) === toIsoDate()
+                      toLocalIsoDate(d) === toLocalIsoDate()
                         ? "bg-primary text-primary-foreground"
                         : "",
                     )}
@@ -337,7 +358,7 @@ export default function CalendarPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <DayTimeline date={currentDate} />
+            <DayTimeline date={currentDate} appointments={appointmentsData} />
           </CardContent>
         </Card>
       )}
@@ -366,7 +387,7 @@ function EmptyState() {
 function AppointmentList({
   appointments,
 }: {
-  appointments: typeof appointmentsData;
+  appointments: AppointmentItem[];
 }) {
   const groupedByDate = appointments.reduce(
     (acc, apt) => {
@@ -374,7 +395,7 @@ function AppointmentList({
       acc[apt.date].push(apt);
       return acc;
     },
-    {} as Record<string, typeof appointmentsData>,
+    {} as Record<string, AppointmentItem[]>,
   );
 
   return (
@@ -456,9 +477,15 @@ function AppointmentList({
   );
 }
 
-function DayTimeline({ date }: { date: Date }) {
-  const dateStr = toIsoDate(date);
-  const dayAppts = appointmentsData
+function DayTimeline({
+  date,
+  appointments,
+}: {
+  date: Date;
+  appointments: AppointmentItem[];
+}) {
+  const dateStr = toLocalIsoDate(date);
+  const dayAppts = appointments
     .filter((a) => a.date === dateStr)
     .sort((a, b) => a.time.localeCompare(b.time));
 

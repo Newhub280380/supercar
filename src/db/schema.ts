@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   uniqueIndex,
+  index,
   boolean,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -51,6 +52,7 @@ export const users = pgTable("users", {
 
 export const usersRelations = relations(users, ({ many, one }) => ({
   clients: many(clients),
+  contacts: many(contacts),
   aiConversations: many(aiConversations),
   emailCampaigns: many(emailCampaigns),
   cosmetologistServices: many(services),
@@ -516,6 +518,63 @@ export const abTestsRelations = relations(abTests, ({ one }) => ({
   campaign: one(emailCampaigns, {
     fields: [abTests.campaignId],
     references: [emailCampaigns.id],
+  }),
+}));
+
+/** Статусы карточки врача/клиники в воронке продаж. */
+export const contactStatusEnum = pgEnum("contact_status", [
+  "new",
+  "contacted",
+  "qualified",
+  "won",
+  "lost",
+  "paused",
+]);
+
+/**
+ * Контакты продаж медицинской эстетики: врачи и клиники.
+ * Колонки совпадают с CSV-импортом (имя, специальность, город, клиника,
+ * источник, телефоны, whatsapp, instagram, статус).
+ * phoneKey / whatsappKey / instagramKey — нормализованные ключи для дедупа.
+ */
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    specialty: text("specialty"),
+    city: text("city"),
+    clinic: text("clinic"),
+    source: text("source"),
+    phones: text("phones"),
+    phoneKey: text("phone_key"),
+    whatsapp: text("whatsapp"),
+    whatsappKey: text("whatsapp_key"),
+    instagram: text("instagram"),
+    instagramKey: text("instagram_key"),
+    status: contactStatusEnum("status").notNull().default("new"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("contacts_owner_idx").on(table.ownerId),
+    index("contacts_owner_phone_key_idx").on(table.ownerId, table.phoneKey),
+    index("contacts_owner_instagram_key_idx").on(
+      table.ownerId,
+      table.instagramKey,
+    ),
+  ],
+);
+
+export const contactsRelations = relations(contacts, ({ one }) => ({
+  owner: one(users, {
+    fields: [contacts.ownerId],
+    references: [users.id],
   }),
 }));
 

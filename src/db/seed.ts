@@ -1,3 +1,4 @@
+import { hashPassword } from "@/lib/auth/password";
 import { db } from "./index";
 import {
   users,
@@ -13,12 +14,15 @@ async function seed() {
   console.log("🌱 Starting seed...");
 
   try {
+    const SEED_PASSWORD = "Seed12345!";
+    const passwordHash = await hashPassword(SEED_PASSWORD);
+    console.log(`Seed password for every user: ${SEED_PASSWORD}`);
     console.log("📝 Creating users...");
     const _adminUser = await db
       .insert(users)
       .values({
         email: "admin@cosmetology.com",
-        passwordHash: "hashed_password_admin",
+        passwordHash,
         name: "Администратор",
         role: "admin",
         phone: "+7 (999) 000-00-00",
@@ -30,7 +34,7 @@ async function seed() {
       .insert(users)
       .values({
         email: "anna@cosmetology.com",
-        passwordHash: "hashed_password_anna",
+        passwordHash,
         name: "Анна Иванова",
         role: "cosmetologist",
         phone: "+7 (999) 111-11-11",
@@ -43,7 +47,7 @@ async function seed() {
       .insert(users)
       .values({
         email: "maria@cosmetology.com",
-        passwordHash: "hashed_password_maria",
+        passwordHash,
         name: "Мария Петрова",
         role: "cosmetologist",
         phone: "+7 (999) 222-22-22",
@@ -56,7 +60,7 @@ async function seed() {
       .insert(users)
       .values({
         email: "elena@gmail.com",
-        passwordHash: "hashed_password_elena",
+        passwordHash,
         name: "Елена Смирнова",
         role: "client",
         phone: "+7 (999) 333-33-33",
@@ -67,7 +71,7 @@ async function seed() {
       .insert(users)
       .values({
         email: "olga@gmail.com",
-        passwordHash: "hashed_password_olga",
+        passwordHash,
         name: "Ольга Козлова",
         role: "client",
         phone: "+7 (999) 444-44-44",
@@ -78,7 +82,7 @@ async function seed() {
       .insert(users)
       .values({
         email: "natalia@gmail.com",
-        passwordHash: "hashed_password_natalia",
+        passwordHash,
         name: "Наталья Волкова",
         role: "client",
         phone: "+7 (999) 555-55-55",

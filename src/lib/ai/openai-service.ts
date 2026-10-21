@@ -127,7 +127,9 @@ function buildFallbackMessage(messages: ChatMessage[]): string {
   const matchedFAQ = searchFAQ(query);
   const matchedProcedures = searchProcedures(query);
 
-  let content = "";
+  const prefix =
+    "Ответ из локальной базы знаний: OPENAI_API_KEY не задан или модель недоступна.\n\n";
+  let content = prefix;
 
   if (matchedFAQ.length > 0) {
     content += `Вот что я нашёл по вашему вопросу:\n\n`;
@@ -143,7 +145,7 @@ function buildFallbackMessage(messages: ChatMessage[]): string {
     }
   }
 
-  if (!content) {
+  if (content === prefix) {
     content =
       "Здравствуйте! Я AI-консультант по косметологии. Задайте мне вопрос о процедурах, уходе за кожей, филлерах, пилингах — и я постараюсь помочь!\n\n⚠️ *Текущий режим: демо. Для полной функциональности укажите OPENAI_API_KEY в переменных окружения.*";
   }

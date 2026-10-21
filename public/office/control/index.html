@@ -26,7 +26,7 @@
 
 <main class="wrap">
   <h1 style="color:var(--neon)">CONTROL CENTER</h1>
-  <p class="dim mono" id="src">источник: shared/data.js · лиды радара подхватываются из leads.json</p>
+  <p class="dim mono" id="src">загрузка показателей из CRM…</p>
 
   <div class="kpis" id="kpis"></div>
 
@@ -35,16 +35,14 @@
       <h2>ДЕНЬГИ ПО МЕСЯЦАМ</h2>
       <canvas id="rev" width="900" height="380"></canvas>
       <div class="legend">
-        <span><i style="background:#00ffcc"></i>приход</span>
-        <span><i style="background:#ff5f6d"></i>расход</span>
-        <span><i style="background:#7cf9ff"></i>прибыль</span>
+        <span><i style="background:#00ffcc"></i>приход по проведённым визитам</span>
       </div>
     </section>
 
     <section class="card">
       <h2>ВОРОНКА</h2>
       <div class="bars" id="funnel"></div>
-      <h2 style="margin-top:22px">ТОП ПОЗИЦИЙ</h2>
+      <h2 style="margin-top:22px">ЗАПИСИ ЗА 7 ДНЕЙ</h2>
       <div class="bars" id="top"></div>
     </section>
   </div>
@@ -56,91 +54,112 @@
   </section>
 
   <section class="card" style="margin:18px 0 20px">
-    <h2>ФИНАНСЫ И КОМАНДА</h2>
+    <h2>СВОДКА CRM</h2>
     <table class="data" id="fin"></table>
   </section>
 </main>
 
 <script type="module">
-import { STATS, PRODUCTS, money } from '../shared/data.js';
+import { money } from '../shared/data.js';
 import { mountNav, mountFooter } from '../shared/nav.js';
 
 mountNav('control');
 
-const R = STATS.revenue, last = R.at(-1), first = R[0];
-const profit = m => m.in - m.out;
-
-const kpis = [
-  ['Приход за месяц', money(last.in)],
-  ['Чистая прибыль', money(profit(last))],
-  ['Рост к ' + first.m, Math.round(last.in / first.in * 100 - 100) + '%'],
-  ['Оплат за месяц', STATS.funnel.at(-1).v],
-  ['CPL', money(STATS.ads.cpl)],
-  ['Остатки на складе', money(PRODUCTS.reduce((s, p) => s + p.stock * p.price, 0))],
+const LEAD_LABELS = [
+  ['new', 'Новые'],
+  ['in_progress', 'В работе'],
+  ['qualified', 'Квалифицированы'],
+  ['won', 'Продажа'],
+  ['lost', 'Потеряны'],
 ];
-document.getElementById('kpis').innerHTML = kpis
-  .map(([lbl, val]) => `<div class="card kpi"><span class="val">${val}</span><span class="lbl">${lbl}</span></div>`)
-  .join('');
 
-/* ---------- График денег. Рисуем на canvas: библиотека графиков ради трёх
-   серий тянула бы в проект лишнюю зависимость. ---------- */
-const cv = document.getElementById('rev');
-const g = cv.getContext('2d');
-const PAD = { l: 74, r: 14, t: 16, b: 34 };
-const max = Math.max(...R.map(m => m.in)) * 1.12;
-const W = cv.width, H = cv.height;
-const px = i => PAD.l + (W - PAD.l - PAD.r) * (i + 0.5) / R.length;
-const py = v => H - PAD.b - (H - PAD.t - PAD.b) * (v / max);
-
-g.font = '13px ui-monospace, monospace';
-g.strokeStyle = '#16242a';
-g.fillStyle = '#74898c';
-for (let i = 0; i <= 4; i++) {
-  const v = max * i / 4, y = py(v);
-  g.beginPath(); g.moveTo(PAD.l, y); g.lineTo(W - PAD.r, y); g.stroke();
-  g.fillText((v / 1e6).toFixed(1) + ' млн', 8, y + 4);
-}
-
-const bw = (W - PAD.l - PAD.r) / R.length * 0.26;
-R.forEach((m, i) => {
-  g.fillStyle = '#00ffcc';
-  g.fillRect(px(i) - bw - 2, py(m.in), bw, H - PAD.b - py(m.in));
-  g.fillStyle = '#ff5f6d';
-  g.fillRect(px(i) + 2, py(m.out), bw, H - PAD.b - py(m.out));
-  g.fillStyle = '#74898c';
-  g.textAlign = 'center';
-  g.fillText(m.m, px(i), H - 12);
-  g.textAlign = 'left';
-});
-
-g.strokeStyle = '#7cf9ff';
-g.lineWidth = 2;
-g.beginPath();
-R.forEach((m, i) => i ? g.lineTo(px(i), py(profit(m))) : g.moveTo(px(i), py(profit(m))));
-g.stroke();
-g.fillStyle = '#7cf9ff';
-R.forEach((m, i) => { g.beginPath(); g.arc(px(i), py(profit(m)), 3.5, 0, 7); g.fill(); });
-
-/* ---------- Полосы ---------- */
 const bars = (el, items) => {
-  const top = Math.max(...items.map(i => i.v));
+  const top = Math.max(1, ...items.map(i => i.v));
   el.innerHTML = items.map(i => `<div class="bar">
       <span>${i.label}</span>
       <span class="track"><span class="fill" style="width:${(i.v / top * 100).toFixed(1)}%"></span></span>
       <span class="n">${i.v}</span></div>`).join('');
 };
-bars(document.getElementById('funnel'), STATS.funnel.map(f => ({ label: f.step, v: f.v })));
-bars(document.getElementById('top'), STATS.top.map(t => ({
-  label: PRODUCTS.find(p => p.sku === t.sku)?.name ?? t.sku, v: t.qty })));
 
-document.getElementById('fin').innerHTML = `
-  <tr><th>Показатель</th><th class="num">Значение</th></tr>
-  <tr><td>Свободные деньги</td><td class="num">${money(STATS.finance.cash)}</td></tr>
-  <tr><td>Дебиторка</td><td class="num bad">${money(STATS.finance.receivable)}</td></tr>
-  <tr><td>Налоги к сроку</td><td class="num">${STATS.finance.tax_due}</td></tr>
-  <tr><td>Рекламный бюджет</td><td class="num">${money(STATS.ads.budget)}</td></tr>
-  <tr><td>Сотрудников / на смене</td><td class="num">${STATS.team.people} / ${STATS.team.on_shift}</td></tr>
-  <tr><td>Задач в работе / просрочено</td><td class="num">${STATS.team.tasks} / <span class="bad">${STATS.team.overdue}</span></td></tr>`;
+function drawRevenue(series) {
+  const cv = document.getElementById('rev');
+  const g = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const rows = series.length ? series : [{ label: '—', value: 0 }];
+  const PAD = { l: 74, r: 14, t: 16, b: 34 };
+  const max = Math.max(1, ...rows.map(m => m.value)) * 1.12;
+  const px = i => PAD.l + (W - PAD.l - PAD.r) * (i + 0.5) / rows.length;
+  const py = v => H - PAD.b - (H - PAD.t - PAD.b) * (v / max);
+  g.font = '13px ui-monospace, monospace';
+  g.strokeStyle = '#16242a';
+  g.fillStyle = '#74898c';
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4, y = py(v);
+    g.beginPath(); g.moveTo(PAD.l, y); g.lineTo(W - PAD.r, y); g.stroke();
+    g.fillText(Math.round(v).toLocaleString('ru-RU'), 8, y + 4);
+  }
+  const bw = (W - PAD.l - PAD.r) / rows.length * 0.45;
+  rows.forEach((m, i) => {
+    g.fillStyle = '#00ffcc';
+    g.fillRect(px(i) - bw / 2, py(m.value), bw, H - PAD.b - py(m.value));
+    g.fillStyle = '#74898c';
+    g.textAlign = 'center';
+    g.fillText(m.label, px(i), H - 12);
+    g.textAlign = 'left';
+  });
+}
+
+function paint(m) {
+  const growth = m.revenue.prevMonth
+    ? Math.round(m.revenue.thisMonth / m.revenue.prevMonth * 100 - 100) + '%'
+    : '—';
+  const kpis = [
+    ['Приход за месяц', money(m.revenue.thisMonth)],
+    ['Прошлый месяц', money(m.revenue.prevMonth)],
+    ['Рост', growth],
+    ['Контакты', m.contacts?.total ?? 0],
+    ['Лиды', m.leads?.total ?? 0],
+    ['Средний чек', money(m.revenue.avgTicket)],
+  ];
+  document.getElementById('kpis').innerHTML = kpis
+    .map(([lbl, val]) => `<div class="card kpi"><span class="val">${val}</span><span class="lbl">${lbl}</span></div>`)
+    .join('');
+  drawRevenue(m.revenueMonths ?? []);
+  const byStatus = m.leads?.byStatus ?? {};
+  bars(document.getElementById('funnel'), LEAD_LABELS.map(([key, label]) => ({
+    label, v: byStatus[key] ?? 0,
+  })));
+  bars(document.getElementById('top'), (m.week ?? []).map(day => ({
+    label: day.label, v: day.value,
+  })));
+  const a = m.appointments;
+  document.getElementById('fin').innerHTML = `
+    <tr><th>Показатель</th><th class="num">Значение</th></tr>
+    <tr><td>Клиентов</td><td class="num">${m.clients.total}</td></tr>
+    <tr><td>Новых за месяц</td><td class="num">${m.clients.newThisMonth}</td></tr>
+    <tr><td>Записей всего / впереди</td><td class="num">${a.total} / ${a.upcoming}</td></tr>
+    <tr><td>Проведено / отменено</td><td class="num">${a.completed} / ${a.cancelled}</td></tr>
+    <tr><td>Услуг в прайсе / активных</td><td class="num">${m.services.total} / ${m.services.active}</td></tr>
+    <tr><td>Email / SMS / UTM</td><td class="num">${m.marketing.emailCampaigns} / ${m.marketing.smsCampaigns} / ${m.marketing.utmCampaigns}</td></tr>`;
+  document.getElementById('src').textContent =
+    'источник: /api/house/metrics · касса, налоги и складской учёт в базе не ведутся';
+}
+
+drawRevenue([]);
+fetch('/api/house/metrics', { credentials: 'same-origin' })
+  .then(r => r.ok ? r.json() : null)
+  .then(m => {
+    if (!m || !m.revenue) {
+      document.getElementById('src').textContent =
+        'войдите в CRM, чтобы увидеть свои цифры. Выдуманных оборотов на этой странице нет.';
+      return;
+    }
+    paint(m);
+  })
+  .catch(() => {
+    document.getElementById('src').textContent = 'не удалось прочитать /api/house/metrics';
+  });
 
 /* ---------- Лиды радара. Экспорт радара — чужие строки из профилей,
    в разметку они попадают только экранированными. ---------- */
@@ -160,10 +179,10 @@ fetch('leads.json').then(r => r.ok ? r.json() : null).then(leads => {
          <td class="num ${l.intent === 'HOT' ? 'good' : 'dim'}">${esc(l.intent ?? '—')}</td></tr>`).join('')}
      </table>`;
   document.getElementById('src').textContent =
-    `источник: shared/data.js · лидов из радара: ${leads.length}`;
+    `лидов из файла радара leads.json: ${leads.length}`;
 }).catch(() => {});
 
-mountFooter('данные подменяются экспортом агента: формат STATS в shared/data.js, лиды — leads.json');
+mountFooter('цифры из CRM владельца. Файл leads.json радара, если он лежит рядом, показывается отдельно.');
 </script>
 </body>
 </html>

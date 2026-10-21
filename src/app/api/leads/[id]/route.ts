@@ -3,12 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { leads, leadStatusEnum } from "@/db/schema";
 import { isNonEmptyString } from "@/lib/api/request";
-import {
-  badRequest,
-  notFound,
-  unauthorized,
-  withErrorHandling,
-} from "@/lib/api/response";
+import { badRequest, notFound, withErrorHandling } from "@/lib/api/response";
+import { leadWriteDenied } from "@/lib/crm/lead-access";
 
 const MAX_LEN = { text: 4000 };
 
@@ -20,7 +16,7 @@ function trimmed(value: unknown, max: number): string | null | undefined {
 /**
  * Обновление лида агентом-ответчиком: записать ответ (draft), эскалацию
  * и статус (new → in_progress после реальной отправки).
- * Авторизация — Bearer LEADS_INGEST_TOKEN, сессия не нужна.
+ * Авторизация — Bearer LEADS_INGEST_TOKEN или сессия менеджера.
  */
 export const PATCH = withErrorHandling(
   "Ошибка обновления лида",
@@ -28,11 +24,8 @@ export const PATCH = withErrorHandling(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
   ) => {
-    const token = process.env.LEADS_INGEST_TOKEN;
-    if (!token) return unauthorized("Приём лидов не настроен");
-    if (request.headers.get("authorization") !== `Bearer ${token}`) {
-      return unauthorized();
-    }
+    const denied = await leadWriteDenied(request);
+    if (denied) return denied;
 
     const { id } = await params;
     const body: unknown = await request.json().catch(() => null);
@@ -60,5 +53,24 @@ export const PATCH = withErrorHandling(
 
     if (!lead) return notFound("Лид не найден");
     return NextResponse.json({ lead });
+  },
+);
+
+export const DELETE = withErrorHandling(
+  "Ошибка удаления лида",
+  async (
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> },
+  ) => {
+    const denied = await leadWriteDenied(request);
+    if (denied) return denied;
+
+    const { id } = await params;
+    const rows = await db
+      .delete(leads)
+      .where(eq(leads.id, id))
+      .returning({ id: leads.id });
+    if (rows.length === 0) return notFound("Лид не найден");
+    return NextResponse.json({ ok: true });
   },
 );

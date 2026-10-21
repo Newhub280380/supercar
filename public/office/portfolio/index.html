@@ -89,7 +89,7 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { BRAND, PRODUCTS, PRICE_TIERS, STATS, money, waUrl } from '../shared/data.js';
+import { BRAND, PRODUCTS, PRICE_TIERS, money, waUrl } from '../shared/data.js';
 import { mountNav, mountFooter } from '../shared/nav.js';
 
 mountNav('portfolio');
@@ -114,11 +114,10 @@ document.getElementById('line').innerHTML = PRODUCTS.map(p => `
     </dl>
   </div>`).join('');
 
-const rev = STATS.revenue;
 document.getElementById('cases').innerHTML = [
-  [Math.round(rev.at(-1).in / rev[0].in * 100 - 100) + '%', 'рост оборота за полгода'],
-  [STATS.funnel.at(-1).v, 'оплат в прошлом месяце'],
-  [PRODUCTS.reduce((s, p) => s + p.stock, 0) + ' шт', 'на складе в Алматы прямо сейчас'],
+  [String(PRODUCTS.length), 'позиций в линейке'],
+  [money(Math.min(...PRODUCTS.map(p => p.price))), 'цена от'],
+  [BRAND.city, 'город склада и самовывоза'],
   ['1–2 дня', 'доставка в любой город РК'],
 ].map(([n, t]) => `<div class="case"><div class="num">${n}</div><div class="dim">${t}</div></div>`).join('');
 

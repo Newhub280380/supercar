@@ -55,32 +55,14 @@ export const tierFor = qty =>
 export const money = v =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(v)) + ' \u20b8';
 
-/** Показатели для Control Center. Заменяются экспортом агента, формат сохранён. */
+/** Форма старого экспорта. Интерфейс её не рисует: цифры берутся из CRM. */
 export const STATS = {
-  revenue: [
-    { m: 'мар', in: 3120000, out: 2280000 },
-    { m: 'апр', in: 3980000, out: 2610000 },
-    { m: 'май', in: 4460000, out: 2840000 },
-    { m: 'июн', in: 5210000, out: 3150000 },
-    { m: 'июл', in: 5890000, out: 3620000 },
-    { m: 'авг', in: 6420000, out: 3980000 },
-  ],
-  funnel: [
-    { step: 'Лиды', v: 412 },
-    { step: 'Диалог', v: 268 },
-    { step: 'Прайс отправлен', v: 174 },
-    { step: 'Счёт', v: 96 },
-    { step: 'Оплата', v: 74 },
-  ],
-  top: [
-    { sku: 'ZS-VOL-1', qty: 148 },
-    { sku: 'ZS-SOFT-1', qty: 131 },
-    { sku: 'ZS-ROSE-2', qty: 87 },
-    { sku: 'ZS-LINE-3', qty: 64 },
-  ],
-  ads: { budget: 480000, cpl: 1240, ctr: 2.4, best: 'ROSE_GLAM_02' },
-  finance: { receivable: 940000, tax_due: '25.09', cash: 1860000 },
-  team: { people: 11, on_shift: 7, tasks: 23, overdue: 2 },
+  revenue: [],
+  funnel: [],
+  top: [],
+  ads: { budget: 0, cpl: 0, ctr: 0, best: '—' },
+  finance: { receivable: 0, tax_due: '—', cash: 0 },
+  team: { people: 0, on_shift: 0, tasks: 0, overdue: 0 },
 };
 
 /** Скрипты продаж: используются модулем бизнес-логики и уходят в WhatsApp. */
