@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -26,10 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  servicesData as initialServices,
-  SERVICE_CATEGORIES,
-} from "@/lib/mock-data";
+import { SERVICE_CATEGORIES } from "@/lib/mock-data";
 import { exportServicesCsv } from "@/lib/csv-export";
 import type { ServiceItem } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/format";
@@ -53,7 +50,9 @@ const EMPTY_FORM: ServiceFormData = {
 };
 
 export default function ServicesPage() {
-  const [services, setServices] = useState<ServiceItem[]>(initialServices);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [activeFilter, setActiveFilter] = useState<
@@ -66,6 +65,38 @@ export default function ServicesPage() {
   );
   const [formData, setFormData] = useState<ServiceFormData>(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState<ServiceItem | null>(null);
+
+  const reload = async () => {
+    const res = await fetch("/api/services");
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setLoadError(data?.error ?? "Не удалось загрузить услуги");
+      return;
+    }
+    setServices(data.services ?? []);
+    setLoadError(null);
+  };
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/services")
+      .then(async (res) => ({ ok: res.ok, data: await res.json().catch(() => null) }))
+      .then(({ ok, data }) => {
+        if (!alive) return;
+        if (!ok) {
+          setLoadError(data?.error ?? "Не удалось загрузить услуги");
+          return;
+        }
+        setServices(data?.services ?? []);
+        setLoadError(null);
+      })
+      .catch(() => {
+        if (alive) setLoadError("Не удалось загрузить услуги");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const filteredServices = useMemo(() => {
     let result = services;
@@ -113,51 +144,63 @@ export default function ServicesPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (editingService) {
-      setServices((prev) =>
-        prev.map((s) =>
-          s.id === editingService.id
-            ? {
-                ...s,
-                name: formData.name,
-                description: formData.description || null,
-                price: formData.price,
-                duration: parseInt(formData.duration) || 60,
-                category: formData.category,
-                isActive: formData.isActive,
-              }
-            : s,
-        ),
-      );
-    } else {
-      const newService: ServiceItem = {
-        id: `srv-${Date.now()}`,
-        name: formData.name,
-        description: formData.description || null,
-        price: formData.price,
-        duration: parseInt(formData.duration) || 60,
-        category: formData.category,
-        imageUrl: null,
-        isActive: formData.isActive,
-        appointmentsCount: 0,
-      };
-      setServices((prev) => [newService, ...prev]);
+  const payload = () => ({
+    name: formData.name,
+    description: formData.description,
+    price: formData.price,
+    duration: parseInt(formData.duration, 10) || 60,
+    category: formData.category,
+    isActive: formData.isActive,
+  });
+
+  const handleSave = async () => {
+    setSaveError(null);
+    const res = await fetch(
+      editingService ? `/api/services/${editingService.id}` : "/api/services",
+      {
+        method: editingService ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload()),
+      },
+    );
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setSaveError(data?.error ?? "Не удалось сохранить услугу");
+      return;
     }
     setDialogOpen(false);
+    await reload();
   };
 
-  const handleDelete = () => {
-    if (deleteTarget) {
-      setServices((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await fetch(`/api/services/${deleteTarget.id}`, {
+      method: "DELETE",
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setLoadError(data?.error ?? "Не удалось удалить услугу");
       setDeleteTarget(null);
+      return;
     }
+    setDeleteTarget(null);
+    await reload();
   };
 
-  const toggleActive = (id: string) => {
-    setServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isActive: !s.isActive } : s)),
-    );
+  const toggleActive = async (service: ServiceItem) => {
+    const res = await fetch(`/api/services/${service.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: service.name,
+        description: service.description ?? "",
+        price: service.price,
+        duration: service.duration,
+        category: service.category,
+        isActive: !service.isActive,
+      }),
+    });
+    if (res.ok) await reload();
   };
 
   const handleExport = () => {
@@ -180,6 +223,7 @@ export default function ServicesPage() {
           <h1 className="font-heading text-2xl font-bold">Услуги</h1>
           <p className="text-muted-foreground text-sm">
             {services.length} услуг · Доход: {formatCurrency(totalRevenue)}
+            {loadError ? ` · ${loadError}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -245,7 +289,7 @@ export default function ServicesPage() {
             service={service}
             onEdit={() => openEditDialog(service)}
             onDelete={() => setDeleteTarget(service)}
-            onToggle={() => toggleActive(service.id)}
+            onToggle={() => void toggleActive(service)}
           />
         ))}
       </div>
@@ -359,6 +403,7 @@ export default function ServicesPage() {
             </label>
           </div>
 
+          {saveError && <p className="text-destructive text-sm">{saveError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Отмена

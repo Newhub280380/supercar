@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -26,10 +27,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  clientsData,
-  getClientAppointments,
   SKIN_TYPE_LABELS,
   APPOINTMENT_STATUS_LABELS,
+  type AppointmentItem,
+  type ClientItem,
 } from "@/lib/mock-data";
 import type { AppointmentStatus } from "@/types";
 import { formatDate } from "@/lib/format";
@@ -52,7 +53,31 @@ const STATUS_STYLES: Record<string, string> = {
 export default function ClientDetailPage() {
   const params = useParams();
   const clientId = params.id as string;
-  const client = clientsData.find((c) => c.id === clientId);
+  const [client, setClient] = useState<ClientItem | null>(null);
+  const [clientAppts, setClientAppts] = useState<AppointmentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/clients/${clientId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!alive) return;
+        setClient(data?.client ?? null);
+        setClientAppts(data?.appointments ?? []);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [clientId]);
+
+  if (loading) {
+    return <p className="text-muted-foreground p-8 text-sm">Загрузка…</p>;
+  }
 
   if (!client) {
     return (
@@ -70,7 +95,6 @@ export default function ClientDetailPage() {
     );
   }
 
-  const clientAppts = getClientAppointments(clientId);
   const initials = client.name
     .split(" ")
     .map((n) => n[0])

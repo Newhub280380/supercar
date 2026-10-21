@@ -192,6 +192,25 @@ export interface EmailProviderConfig {
   apiKey: string;
   fromEmail: string;
   fromName?: string;
+  /** Домен Mailgun, например mg.example.com. Без него Mailgun не вызывается. */
+  domain?: string;
+}
+
+export function emailProviderFromEnv(): EmailProviderConfig | null {
+  const provider = process.env.EMAIL_PROVIDER === "mailgun" ? "mailgun" : "sendgrid";
+  const apiKey =
+    provider === "mailgun"
+      ? process.env.MAILGUN_API_KEY
+      : process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.EMAIL_FROM;
+  if (!apiKey || !fromEmail) return null;
+  return {
+    provider,
+    apiKey,
+    fromEmail,
+    fromName: process.env.EMAIL_FROM_NAME,
+    domain: process.env.MAILGUN_DOMAIN,
+  };
 }
 
 export interface SendEmailPayload {
@@ -213,8 +232,9 @@ export async function sendEmailViaProvider(
 ): Promise<SendEmailResult> {
   if (!config.apiKey || config.apiKey === "test") {
     return {
-      success: true,
-      messageId: `mock-${Date.now()}`,
+      success: false,
+      error:
+        "Почтовый провайдер не настроен: задайте SENDGRID_API_KEY или MAILGUN_API_KEY. Письмо не отправлено.",
     };
   }
 
@@ -240,6 +260,38 @@ export async function sendEmailViaProvider(
         return { success: false, error: `SendGrid error: ${response.status}` };
       }
       return { success: true, messageId: response.headers.get("x-message-id") || undefined };
+    }
+
+    if (config.provider === "mailgun") {
+      if (!config.domain) {
+        return {
+          success: false,
+          error: "MAILGUN_DOMAIN не задан. Письмо не отправлено.",
+        };
+      }
+      const body = new URLSearchParams();
+      const fromName = config.fromName || "CRM";
+      body.set("from", `${fromName} <${payload.from || config.fromEmail}>`);
+      body.set("to", payload.to.join(","));
+      body.set("subject", payload.subject);
+      body.set("html", payload.html);
+      const response = await fetch(
+        `https://api.mailgun.net/v3/${config.domain}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${Buffer.from(`api:${config.apiKey}`).toString("base64")}`,
+          },
+          body,
+        },
+      );
+      if (!response.ok) {
+        return { success: false, error: `Mailgun error: ${response.status}` };
+      }
+      const payloadJson = (await response.json().catch(() => null)) as {
+        id?: string;
+      } | null;
+      return { success: true, messageId: payloadJson?.id };
     }
 
     return { success: false, error: "Provider not implemented" };

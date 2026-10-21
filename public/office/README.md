@@ -41,7 +41,7 @@ npm run dev
 
 * номер WhatsApp: `BRAND.whatsapp` в `shared/data.js` (формат без `+` и пробелов);
 * цены, остатки и линейка: `PRODUCTS`;
-* показатели дашборда: `STATS`;
+* показатели дашборда читаются из `/api/house/metrics` после входа в CRM;
 * скрипты и возражения: `SCRIPTS`, `OBJECTIONS`.
 
 ## house/ — управление

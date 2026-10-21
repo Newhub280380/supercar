@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  Mail,
-  MessageSquare,
-  Link2,
-  Target,
-  ArrowUpRight,
-  TrendingUp,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Mail, MessageSquare, Link2, Target, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import {
   Card,
@@ -16,47 +10,111 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  promotionOverviewMetrics,
-  emailOpenRateData,
-  conversionFunnelData,
-} from "@/lib/promotion-mock-data";
 import { formatNumber } from "@/lib/format";
 
-const METRIC_ICONS: Record<string, React.ElementType> = {
-  mail: Mail,
-  messageSquare: MessageSquare,
-  link: Link2,
-  target: Target,
-};
-
-function getMaxValue(data: Array<{ value: number }>) {
-  return Math.max(...data.map((d) => d.value));
+interface PromoMetrics {
+  marketing: {
+    emailCampaigns: number;
+    smsCampaigns: number;
+    utmCampaigns: number;
+    subscribers: number;
+  };
+  leads: {
+    total: number;
+    new: number;
+    byStatus?: Record<string, number>;
+  };
+  contacts: { total: number };
 }
 
+const EMPTY: PromoMetrics = {
+  marketing: {
+    emailCampaigns: 0,
+    smsCampaigns: 0,
+    utmCampaigns: 0,
+    subscribers: 0,
+  },
+  leads: { total: 0, new: 0, byStatus: {} },
+  contacts: { total: 0 },
+};
+
+const LEAD_LABELS: Array<[string, string]> = [
+  ["new", "Новые"],
+  ["in_progress", "В работе"],
+  ["qualified", "Квалифицированы"],
+  ["won", "Продажа"],
+  ["lost", "Потеряны"],
+];
+
 export default function PromotionOverviewPage() {
-  const maxOpenRate = getMaxValue(emailOpenRateData);
+  const [metrics, setMetrics] = useState<PromoMetrics>(EMPTY);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/house/metrics")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: PromoMetrics | null) => {
+        if (cancelled) return;
+        if (!data?.marketing) {
+          setError("Не удалось загрузить показатели из базы");
+          return;
+        }
+        setMetrics(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Не удалось загрузить показатели из базы");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cards = [
+    {
+      label: "Email-черновики",
+      value: formatNumber(metrics.marketing.emailCampaigns),
+      icon: Mail,
+    },
+    {
+      label: "SMS-черновики",
+      value: formatNumber(metrics.marketing.smsCampaigns),
+      icon: MessageSquare,
+    },
+    {
+      label: "UTM-кампании",
+      value: formatNumber(metrics.marketing.utmCampaigns),
+      icon: Link2,
+    },
+    {
+      label: "Подписчики",
+      value: formatNumber(metrics.marketing.subscribers),
+      icon: Target,
+    },
+  ];
+
+  const funnel = LEAD_LABELS.map(([key, stage]) => ({
+    stage,
+    count: metrics.leads.byStatus?.[key] ?? 0,
+  }));
+  const funnelMax = Math.max(1, ...funnel.map((stage) => stage.count));
 
   return (
     <div className="space-y-6">
+      <p className="text-muted-foreground text-sm">
+        Счётчики из базы. Письма и SMS сохраняются черновиками: без
+        SENDGRID_API_KEY или MAILGUN_API_KEY и MAILGUN_DOMAIN отправка не
+        выполняется и open rate не считается.
+        {error ? ` ${error}` : ""}
+      </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {promotionOverviewMetrics.map((metric, i) => {
-          const Icon = METRIC_ICONS[metric.icon] || Mail;
+        {cards.map((metric) => {
+          const Icon = metric.icon;
           return (
-            <Card
-              key={i}
-              className="animate-fade-in"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
+            <Card key={metric.label}>
               <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
-                    <Icon className="text-primary size-5" />
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                    <ArrowUpRight className="size-3" />
-                    {metric.change}%
-                  </div>
+                <div className="bg-primary/10 flex size-10 items-center justify-center rounded-xl">
+                  <Icon className="text-primary size-5" />
                 </div>
                 <div className="mt-3">
                   <div className="text-2xl font-bold">{metric.value}</div>
@@ -70,67 +128,36 @@ export default function PromotionOverviewPage() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Воронка конверсии</CardTitle>
-            <CardDescription>
-              Посетители → Регистрация → Запись → Визит
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {conversionFunnelData.map((stage, i) => (
-                <div key={i}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="font-medium">{stage.stage}</span>
-                    <span className="text-muted-foreground">
-                      {formatNumber(stage.count)} ({stage.percentage}%)
-                    </span>
-                  </div>
-                  <div className="bg-muted h-3 overflow-hidden rounded-full">
-                    <div
-                      className="bg-primary h-full rounded-full transition-all duration-500"
-                      style={{ width: `${stage.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Open Rate Email-рассылок</CardTitle>
-            <CardDescription>Динамика за полгода</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex h-40 items-end gap-3">
-              {emailOpenRateData.map((d, i) => (
-                <div
-                  key={i}
-                  className="flex flex-1 flex-col items-center gap-1.5"
-                >
-                  <span className="text-muted-foreground text-xs">
-                    {d.value}%
+      <Card>
+        <CardHeader>
+          <CardTitle>Лиды по статусам</CardTitle>
+          <CardDescription>
+            {formatNumber(metrics.leads.total)} всего, из них{" "}
+            {formatNumber(metrics.leads.new)} новых. Контактов клиник:{" "}
+            {formatNumber(metrics.contacts.total)}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {funnel.map((stage) => (
+              <div key={stage.stage}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="font-medium">{stage.stage}</span>
+                  <span className="text-muted-foreground">
+                    {formatNumber(stage.count)}
                   </span>
+                </div>
+                <div className="bg-muted h-3 overflow-hidden rounded-full">
                   <div
-                    className="bg-primary/80 hover:bg-primary w-full rounded-t-md transition-all duration-500"
-                    style={{
-                      height: `${(d.value / maxOpenRate) * 100}%`,
-                      minHeight: "8px",
-                    }}
+                    className="bg-primary h-full rounded-full transition-all duration-500"
+                    style={{ width: `${(stage.count / funnelMax) * 100}%` }}
                   />
-                  <span className="text-muted-foreground text-[10px]">
-                    {d.label}
-                  </span>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="pt-6">
@@ -159,7 +186,7 @@ export default function PromotionOverviewPage() {
               <div>
                 <div className="text-sm font-medium">Email</div>
                 <div className="text-muted-foreground text-xs">
-                  Рассылки, шаблоны
+                  Черновики рассылок
                 </div>
               </div>
             </Link>
@@ -172,7 +199,7 @@ export default function PromotionOverviewPage() {
               </div>
               <div>
                 <div className="text-sm font-medium">SMS</div>
-                <div className="text-muted-foreground text-xs">Уведомления</div>
+                <div className="text-muted-foreground text-xs">Черновики</div>
               </div>
             </Link>
             <Link

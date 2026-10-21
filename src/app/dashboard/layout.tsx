@@ -18,6 +18,7 @@ import {
   BarChart3,
   Building2,
   Inbox,
+  BookUser,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { useState } from "react";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Дашборд", icon: LayoutDashboard },
   { href: "/dashboard/calendar", label: "Календарь", icon: Calendar },
+  { href: "/dashboard/contacts", label: "Контакты", icon: BookUser },
   { href: "/dashboard/leads", label: "Лиды", icon: Inbox },
   { href: "/dashboard/clients", label: "Клиенты", icon: Users },
   { href: "/dashboard/services", label: "Услуги", icon: Sparkles },

@@ -141,7 +141,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { moduleByRoom, ROOT } from '../shared/modules.js';
-import { STATS, PRODUCTS, money } from '../shared/data.js';
+import { PRODUCTS, money } from '../shared/data.js';
 
 /* ---------- Планировка. Дом на два этажа: 4 отдела внизу, 3 наверху,
    между ними пандус-лестница в правом конце коридора. ---------- */
@@ -150,45 +150,42 @@ const COL = 22, ROWZ = 13, HALF = ROOM / 2, DOOR = 5;
 const RAMP_X0 = 26, RAMP_X1 = 42, RAMP_HALF = 4;
 const PLAN_X0 = -40, PLAN_X1 = 44, PLAN_Z = 24;
 
-const last = STATS.revenue.at(-1);
 const lowStock = PRODUCTS.filter(p => p.stock < 15).length;
-const paid = STATS.funnel.at(-1).v, leadsAll = STATS.funnel[0].v;
 
 const DEPARTMENTS = [
   { id: 'reception',  name: 'РЕСЕПШН',        floor: 0, col: 1,  row: 1,  hue: 0x9df9ff,
     sub: 'первое касание: визитка, профиль, ссылки',
-    rows: [['Обращений в Instagram', STATS.funnel[1].v],
-           ['Ответ в среднем', '4 мин'],
-           ['Переходов из bio', 318],
+    rows: [['Клиентов в базе', '—'],
+           ['Новых за месяц', '—'],
+           ['Записей впереди', '—'],
            ['Город', 'Алматы']] },
   { id: 'sales',      name: 'ОТДЕЛ ПРОДАЖ',   floor: 0, col: -1, row: -1, hue: 0x00ffcc,
     sub: 'входящие заявки и обзвон базы',
-    rows: [['Лидов в базе', leadsAll], ['HOT-лидов', '—'],
-           ['Счётов выставлено', STATS.funnel[3].v],
-           ['Оплат', paid],
-           ['Конверсия в оплату', Math.round(paid / leadsAll * 100) + '%']],
-    note: 'лиды подхватываются из leads.json радара' },
+    rows: [['Контакты клиник', '—'], ['Лиды', '—'],
+           ['Новые лиды', '—'],
+           ['Проведено визитов', '—']],
+    note: 'цифры подгружаются из CRM' },
   { id: 'marketing',  name: 'МАРКЕТИНГ',      floor: 0, col: 1,  row: -1, hue: 0x00ffff,
-    sub: 'реклама, креативы, тесты',
-    rows: [['Бюджет за месяц', money(STATS.ads.budget)], ['CPL', money(STATS.ads.cpl)],
-           ['CTR', STATS.ads.ctr.toString().replace('.', ',') + '%'],
-           ['Лучший креатив', STATS.ads.best]] },
+    sub: 'рассылки и UTM из базы',
+    rows: [['Email-кампаний', '—'], ['SMS-кампаний', '—'],
+           ['UTM-кампаний', '—'],
+           ['Подписчиков', '—']] },
   { id: 'warehouse',  name: 'СКЛАД',          floor: 0, col: -1, row: 1,  hue: 0x7cf9ff,
-    sub: 'остатки и отгрузки',
-    rows: [['Позиций в линейке', PRODUCTS.length],
-           ['Штук на складе', PRODUCTS.reduce((s, p) => s + p.stock, 0)],
-           ['Ниже минимума', [String(lowStock), lowStock ? 'bad' : 'good']],
-           ['Стоимость остатков', money(PRODUCTS.reduce((s, p) => s + p.stock * p.price, 0))]] },
+    sub: 'прайс услуг из CRM, каталог — отдельно',
+    rows: [['Позиций в каталоге', PRODUCTS.length],
+           ['Услуг в прайсе', '—'],
+           ['Ниже минимума в каталоге', [String(lowStock), lowStock ? 'bad' : 'good']],
+           ['Средний чек', '—']] },
   { id: 'accounting', name: 'БУХГАЛТЕРИЯ',    floor: 1, col: -1, row: -1, hue: 0x00d9ff,
-    sub: 'деньги, налоги, сверки',
-    rows: [['Приход за месяц', money(last.in)], ['Расход', money(last.out)],
-           ['Дебиторка', [money(STATS.finance.receivable), 'bad']],
-           ['Налоги к сроку', STATS.finance.tax_due]] },
+    sub: 'приход считается по проведённым визитам',
+    rows: [['Приход за месяц', '—'], ['Прошлый месяц', '—'],
+           ['Средний чек', '—'],
+           ['Проведено записей', '—']] },
   { id: 'admin',      name: 'АДМИНИСТРАЦИЯ',  floor: 1, col: 1,  row: -1, hue: 0x66ffd9,
-    sub: 'персонал и процессы',
-    rows: [['Сотрудников', STATS.team.people], ['На смене сейчас', STATS.team.on_shift],
-           ['Задач в работе', STATS.team.tasks],
-           ['Просрочено', [String(STATS.team.overdue), 'bad']]] },
+    sub: 'записи в работе',
+    rows: [['Записей в работе', '—'], ['Ждут подтверждения', '—'],
+           ['Просрочено', '—'],
+           ['Услуг активно', '—']] },
   { id: 'chill',      name: 'ЧИЛАУТ-ЗОНА',    floor: 1, col: -1, row: 1,  hue: 0x7dffe0,
     lounge: true, green: 0x2bff88,
     sub: 'фуршетная кухня, дерево света и пульт с музыкой',
@@ -207,11 +204,10 @@ const DEPARTMENTS = [
     note: 'вопрос владельца уходит на раунд-робин моделей' },
   { id: 'director',   name: 'ДИРЕКТОР',       floor: 1, col: 0,  row: 1,  hue: 0x3dfbe0,
     sub: 'то, что решается только здесь',
-    rows: [['Чистая прибыль', [money(last.in - last.out), 'good']],
-           ['Рост к первому месяцу',
-            Math.round(last.in / STATS.revenue[0].in * 100 - 100) + '%'],
-           ['Свободные деньги', money(STATS.finance.cash)],
-           ['Риск №1', 'зависимость от 1 поставщика']] },
+    rows: [['Выручка за месяц', '—'],
+           ['Рост к прошлому месяцу', '—'],
+           ['Средний чек', '—'],
+           ['Клиентов в базе', '—']] },
 ];
 
 // Связь комната → модуль берём из манифеста, а не дублируем здесь.
@@ -372,22 +368,33 @@ function wall(cx, y, cz, w, d, hue) {
   return m;
 }
 
-function dashboard(dep, x0, y, z0) {
-  // Настольный 3D-дэшборд: выручка по месяцам столбиками, чтобы цифры
-  // читались прямо из комнаты, а не только из карточки.
-  const group = new THREE.Group();
-  const max = Math.max(...STATS.revenue.map(r => r.in));
-  STATS.revenue.forEach((r, i) => {
-    const h = 0.4 + 2.6 * (r.in / max);
+let directorDash = null;
+function fillRevenueBars(group, dep, values) {
+  for (const child of [...group.children]) {
+    const idx = clickable.indexOf(child);
+    if (idx >= 0) clickable.splice(idx, 1);
+    group.remove(child);
+  }
+  const series = values.length ? values : [0, 0, 0, 0, 0, 0];
+  const max = Math.max(1, ...series);
+  series.forEach((value, i) => {
+    const h = 0.35 + 2.6 * (value / max);
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.5, h, 0.5),
       new THREE.MeshStandardMaterial({ color: 0x0a1418, emissive: new THREE.Color(dep.hue),
                                        emissiveIntensity: 0.7, roughness: 0.4 }));
-    bar.position.set((i - (STATS.revenue.length - 1) / 2) * 0.9, h / 2, 0);
+    bar.position.set((i - (series.length - 1) / 2) * 0.9, h / 2, 0);
+    bar.userData.dep = dep;
     group.add(bar);
+    clickable.push(bar);
   });
+}
+function dashboard(dep, x0, y, z0) {
+  // Столбики прихода по месяцам. До ответа CRM высота нулевая.
+  const group = new THREE.Group();
   group.position.set(x0, y + 2.6, z0 - 3);
   scene.add(group);
-  group.traverse(o => { o.userData.dep = dep; if (o.isMesh) clickable.push(o); });
+  directorDash = { group, dep };
+  fillRevenueBars(group, dep, []);
 }
 
 /* Совещательная: круглый стол совета моделей. В центре — вращающаяся
@@ -1399,8 +1406,7 @@ window.closeCard = () => {
 };
 
 /* ---------- Живые показатели компании из CRM ----------
-   Дом раздаётся и как статика внутри приложения (там ручка отвечает), и как
-   отдельный сайт (там её нет) — во втором случае остаются демо-цифры. */
+   Пока ручка не ответила, в карточках прочерки. Выдуманных оборотов нет. */
 const dept = id => DEPARTMENTS.find(d => d.id === id);
 let liveMetrics = false;
 
@@ -1418,9 +1424,10 @@ function applyLiveMetrics(m) {
     ['Записей впереди', m.appointments.upcoming],
     ['Отмен', m.appointments.cancelled]];
   dept('sales').rows = [
-    ['Клиентов', m.clients.total],
-    ['Записей всего', m.appointments.total],
-    ['Проведено', m.appointments.completed],
+    ['Контакты клиник', m.contacts?.total ?? 0],
+    ['Лиды', m.leads?.total ?? 0],
+    ['Новые лиды', m.leads?.new ?? 0],
+    ['Проведено визитов', m.appointments.completed],
     ['Конверсия в проведённые',
      pct(m.appointments.completed, m.appointments.total)]];
   dept('sales').note = 'цифры считаются из вашей CRM';
@@ -1461,6 +1468,14 @@ function applyLiveMetrics(m) {
   }
   drawBoard();
 
+  if (directorDash && Array.isArray(m.revenueMonths)) {
+    fillRevenueBars(
+      directorDash.group,
+      directorDash.dep,
+      m.revenueMonths.map(row => Number(row.value) || 0),
+    );
+  }
+
   document.getElementById('stat').textContent =
     'отделов: 8 · чилаут: 1 · этажей: 2 · данные из CRM';
   const open = DEPARTMENTS.find(
@@ -1478,8 +1493,10 @@ fetch('leads.json').then(r => r.ok ? r.json() : null).then(leads => {
   if (!Array.isArray(leads) || liveMetrics) return;
   const hot = leads.filter(l => l.intent === 'HOT').length;
   const sales = DEPARTMENTS.find(d => d.id === 'sales');
-  sales.rows[0][1] = leads.length;
-  sales.rows[1][1] = [String(hot), hot ? 'good' : ''];
+  const leadRow = sales.rows.find(row => row[0] === 'Лиды');
+  if (leadRow) leadRow[1] = leads.length;
+  const hotRow = sales.rows.find(row => row[0] === 'Новые лиды');
+  if (hotRow) hotRow[1] = [String(hot) + ' HOT', hot ? 'good' : ''];
   document.getElementById('stat').textContent =
     `отделов: ${DEPARTMENTS.filter(d => !d.lounge).length} · чилаут: 1 · этажей: 2 · ` +
     `лидов из радара: ${leads.length}`;

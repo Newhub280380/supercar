@@ -46,3 +46,11 @@ export function formatDate(
 export function toIsoDate(date: DateInput = new Date()): string {
   return new Date(date).toISOString().split("T")[0];
 }
+
+/** Calendar day in the server's local timezone (не UTC-срез ISO). */
+export function toLocalIsoDate(date: DateInput = new Date()): string {
+  const value = new Date(date);
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${value.getFullYear()}-${month}-${day}`;
+}

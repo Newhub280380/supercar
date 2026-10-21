@@ -27,17 +27,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  dashboardMetrics,
-  weeklyChartData,
-  revenueChartData,
-  appointmentsData,
-  remindersData,
-  APPOINTMENT_STATUS_LABELS,
-} from "@/lib/mock-data";
+import { APPOINTMENT_STATUS_LABELS } from "@/lib/mock-data";
 import { exportAppointmentsCsv } from "@/lib/csv-export";
 import type { AppointmentStatus } from "@/types";
-import { formatDate, toIsoDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 const METRIC_ICONS: Record<string, React.ElementType> = {
   calendar: Calendar,
@@ -62,13 +55,38 @@ const REMINDER_ICONS: Record<string, React.ElementType> = {
 };
 
 function getMaxValue(data: Array<{ value: number }>) {
-  return Math.max(...data.map((d) => d.value));
+  return Math.max(0, ...data.map((d) => d.value));
+}
+
+interface TodayAppointment {
+  id: string;
+  clientName: string;
+  service: string;
+  time: string;
+  endTime: string;
+  status: AppointmentStatus;
+  price: number;
+}
+
+interface Reminder {
+  id: string;
+  clientName: string;
+  service: string;
+  date: string;
+  time: string;
+  type: "upcoming";
 }
 
 interface HouseMetrics {
   clients: { total: number; newThisMonth: number };
   appointments: { total: number; upcoming: number; completed: number };
   revenue: { thisMonth: number; prevMonth: number; avgTicket: number };
+  contacts: { total: number };
+  leads: { total: number; new: number };
+  week: Array<{ label: string; value: number }>;
+  revenueMonths: Array<{ label: string; value: number }>;
+  today: TodayAppointment[];
+  reminders: Reminder[];
 }
 
 const tenge = (value: number) => `${value.toLocaleString("ru-RU")} ₸`;
@@ -79,16 +97,16 @@ function liveMetricCards(m: HouseMetrics) {
     : null;
   return [
     {
-      label: "Записей впереди",
-      value: String(m.appointments.upcoming),
-      change: null,
-      icon: "calendar",
-    },
-    {
-      label: "Новых клиентов за месяц",
-      value: String(m.clients.newThisMonth),
+      label: "Контакты клиник",
+      value: String(m.contacts.total),
       change: null,
       icon: "userPlus",
+    },
+    {
+      label: "Новые лиды",
+      value: String(m.leads.new),
+      change: null,
+      icon: "calendar",
     },
     {
       label: "Приход за месяц",
@@ -97,37 +115,55 @@ function liveMetricCards(m: HouseMetrics) {
       icon: "trendingUp",
     },
     {
-      label: "Средний чек",
-      value: tenge(m.revenue.avgTicket),
+      label: "Записей впереди",
+      value: String(m.appointments.upcoming),
       change: null,
       icon: "star",
     },
   ];
 }
 
+const EMPTY_METRICS: HouseMetrics = {
+  clients: { total: 0, newThisMonth: 0 },
+  appointments: { total: 0, upcoming: 0, completed: 0 },
+  revenue: { thisMonth: 0, prevMonth: 0, avgTicket: 0 },
+  contacts: { total: 0 },
+  leads: { total: 0, new: 0 },
+  week: [],
+  revenueMonths: [],
+  today: [],
+  reminders: [],
+};
+
 export default function DashboardPage() {
-  const [metrics, setMetrics] = useState<HouseMetrics | null>(null);
+  const [metrics, setMetrics] = useState<HouseMetrics>(EMPTY_METRICS);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/house/metrics")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: HouseMetrics | null) => {
-        if (!cancelled && data) setMetrics(data);
+        if (cancelled) return;
+        if (!data) {
+          setMetricsError("Не удалось загрузить показатели из базы");
+          return;
+        }
+        setMetrics(data);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setMetricsError("Не удалось загрузить показатели из базы");
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const metricCards = metrics
-    ? liveMetricCards(metrics)
-    : dashboardMetrics.map((metric) => ({ ...metric, change: null }));
-
-  const todayAppointments = appointmentsData.filter(
-    (a) => a.date === toIsoDate(),
-  );
+  const metricCards = liveMetricCards(metrics);
+  const todayAppointments = metrics.today;
+  const weeklyChartData = metrics.week;
+  const revenueChartData = metrics.revenueMonths;
+  const remindersData = metrics.reminders;
 
   const maxWeekly = getMaxValue(weeklyChartData);
   const maxRevenue = getMaxValue(revenueChartData);
@@ -138,8 +174,7 @@ export default function DashboardPage() {
       Услуга: a.service,
       Время: `${a.time} - ${a.endTime}`,
       Статус: APPOINTMENT_STATUS_LABELS[a.status],
-      Стоимость: a.servicePrice,
-      Заметки: a.notes || "",
+      Стоимость: a.price,
     }));
     exportAppointmentsCsv(exportData, "appointments-today");
   };
@@ -151,6 +186,7 @@ export default function DashboardPage() {
           <h1 className="font-heading text-2xl font-bold">Добро пожаловать!</h1>
           <p className="text-muted-foreground text-sm">
             {formatDate(new Date(), "weekdayLongYear")}
+            {metricsError ? ` · ${metricsError}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -234,8 +270,9 @@ export default function DashboardPage() {
                   <div
                     className="bg-primary/80 hover:bg-primary w-full rounded-t-md transition-all duration-500"
                     style={{
-                      height: `${(d.value / maxWeekly) * 100}%`,
-                      minHeight: "8px",
+                      height: maxWeekly
+                        ? `${(d.value / maxWeekly) * 100}%`
+                        : "0%",
                     }}
                   />
                   <span className="text-muted-foreground text-[10px]">
@@ -253,6 +290,11 @@ export default function DashboardPage() {
             <CardDescription>Ближайшие события</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {remindersData.length === 0 && (
+              <p className="text-muted-foreground text-sm">
+                Нет ближайших записей
+              </p>
+            )}
             {remindersData.slice(0, 4).map((r) => {
               const Icon = REMINDER_ICONS[r.type] || Bell;
               return (
@@ -263,11 +305,7 @@ export default function DashboardPage() {
                   <div
                     className={cn(
                       "flex size-8 items-center justify-center rounded-lg",
-                      r.type === "birthday"
-                        ? "bg-cyan-100 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-400"
-                        : r.type === "followup"
-                          ? "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
-                          : "bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400",
+                      "bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400",
                     )}
                   >
                     <Icon className="size-4" />
@@ -310,6 +348,11 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
+              {todayAppointments.length === 0 && (
+                <p className="text-muted-foreground text-sm">
+                  На сегодня записей нет
+                </p>
+              )}
               {todayAppointments.slice(0, 5).map((apt) => (
                 <div
                   key={apt.id}
@@ -337,7 +380,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <span className="text-sm font-medium">
-                    ₽{apt.servicePrice}
+                    {tenge(apt.price)}
                   </span>
                 </div>
               ))}
@@ -363,8 +406,9 @@ export default function DashboardPage() {
                   <div
                     className="bg-chart-2/80 hover:bg-chart-2 w-full rounded-t-md transition-all duration-500"
                     style={{
-                      height: `${(d.value / maxRevenue) * 100}%`,
-                      minHeight: "8px",
+                      height: maxRevenue
+                        ? `${(d.value / maxRevenue) * 100}%`
+                        : "0%",
                     }}
                   />
                   <span className="text-muted-foreground text-[10px]">
@@ -396,16 +440,16 @@ export default function DashboardPage() {
                 </div>
               </Link>
               <Link
-                href="/dashboard/clients"
+                href="/dashboard/contacts"
                 className="border-border/50 hover:bg-muted/30 flex items-center gap-3 rounded-xl border p-4 transition-all hover:shadow-sm"
               >
                 <div className="bg-sage/20 flex size-10 items-center justify-center rounded-xl">
                   <UserPlus className="text-sage size-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-medium">Добавить клиента</div>
+                  <div className="text-sm font-medium">Контакты</div>
                   <div className="text-muted-foreground text-xs">
-                    Новый профиль
+                    Врачи и клиники
                   </div>
                 </div>
               </Link>

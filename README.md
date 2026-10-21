@@ -20,6 +20,23 @@ AI-powered platform for cosmetologists with CRM, consultations, SMM, and analyti
 - Node.js **20.9+** (Next.js 16 requirement; CI uses Node 22), npm 10+
 - PostgreSQL 14+ database (or use a local one via Docker)
 
+### Одна команда
+
+Поднимает локальный PostgreSQL (если его нет), создаёт базу `cosmetology_db`,
+схему, владельца и dev-сервер:
+
+```bash
+npm run up
+```
+
+Вход после первого запуска: `owner@zishel.kz` / `Owner12345!`
+(значения пишутся в `.env.local` как `DEMO_EMAIL` / `DEMO_PASSWORD`).
+Контакты клиник: `/dashboard/contacts`. Пример CSV: `public/samples/contacts.csv`.
+
+`OPENAI_API_KEY`, `SENDGRID_API_KEY` и `MAILGUN_API_KEY` можно оставить пустыми:
+AI отвечает шаблоном из локальной базы и прямо говорит, что ключа нет;
+письма и SMS не притворяются отправленными.
+
 ### Installation
 
 ```bash

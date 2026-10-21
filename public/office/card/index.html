@@ -90,7 +90,7 @@
 </main>
 
 <script type="module">
-import { BRAND, PRODUCTS, STATS, money, waUrl } from '../shared/data.js';
+import { BRAND, PRODUCTS, money, waUrl } from '../shared/data.js';
 import { mountNav, mountFooter } from '../shared/nav.js';
 
 mountNav('card');
@@ -191,7 +191,7 @@ document.getElementById('png').onclick = () => {
   }, 'image/png');
 };
 
-mountFooter(`лидов в месяц по воронке: ${STATS.funnel[0].v} — визитка стоит первой в этой цепочке`);
+mountFooter(`${BRAND.city} · ${PRODUCTS.length} позиций в линейке`);
 </script>
 </body>
 </html>

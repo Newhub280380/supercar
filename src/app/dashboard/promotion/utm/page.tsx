@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link2, Plus, Copy, Check, ExternalLink, Search } from "lucide-react";
 import {
   Card,
@@ -18,10 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  utmCampaignsData,
-  type UtmCampaignItem,
-} from "@/lib/promotion-mock-data";
+import { type UtmCampaignItem } from "@/lib/promotion-mock-data";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { formatNumber } from "@/lib/format";
 
@@ -33,8 +30,28 @@ export default function UtmPage() {
   const [campaign, setCampaign] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
 
-  const [campaigns, setCampaigns] =
-    useState<UtmCampaignItem[]>(utmCampaignsData);
+  const [campaigns, setCampaigns] = useState<UtmCampaignItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/utm")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!alive) return;
+        if (!data) {
+          setLoadError("Не удалось загрузить UTM-кампании");
+          return;
+        }
+        setCampaigns(data.campaigns ?? []);
+      })
+      .catch(() => {
+        if (alive) setLoadError("Не удалось загрузить UTM-кампании");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -77,10 +94,7 @@ export default function UtmPage() {
         setCreateError(data?.error ?? "Не удалось создать UTM-метку");
         return;
       }
-      setCampaigns((current) => [
-        { ...data.campaign, name: campaign } as UtmCampaignItem,
-        ...current,
-      ]);
+      setCampaigns((current) => [data.campaign as UtmCampaignItem, ...current]);
       setShowCreate(false);
       resetForm();
     } catch {
@@ -92,6 +106,7 @@ export default function UtmPage() {
 
   return (
     <div className="space-y-6">
+      {loadError && <p className="text-destructive text-sm">{loadError}</p>}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />

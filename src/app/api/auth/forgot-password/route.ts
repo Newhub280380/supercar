@@ -7,6 +7,10 @@ import { withRateLimit } from "@/lib/api/handlers";
 import { isNonEmptyString } from "@/lib/api/request";
 import { badRequest, withErrorHandling } from "@/lib/api/response";
 import { getAppBaseUrl } from "@/lib/env";
+import {
+  emailProviderFromEnv,
+  sendEmailViaProvider,
+} from "@/lib/promotion-utils";
 import crypto from "crypto";
 
 const GENERIC_RESPONSE = {
@@ -42,11 +46,24 @@ export const POST = withErrorHandling(
       expiresAt,
     });
 
-    // TODO: integrate email service (SendGrid/Mailgun) for production
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        `[Password Reset] ${getAppBaseUrl()}/auth/reset-password?token=${token}`,
+    const resetUrl = `${getAppBaseUrl()}/auth/reset-password?token=${token}`;
+    const provider = emailProviderFromEnv();
+    if (!provider) {
+      console.warn(
+        "Сброс пароля сохранён, но письмо не отправлено: нет SENDGRID_API_KEY или MAILGUN_API_KEY.",
       );
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Password Reset] ${resetUrl}`);
+      }
+    } else {
+      const sent = await sendEmailViaProvider(provider, {
+        to: [user.email],
+        subject: "Сброс пароля",
+        html: `<p>Ссылка для сброса пароля: <a href="${resetUrl}">${resetUrl}</a></p>`,
+      });
+      if (!sent.success) {
+        console.error("Сброс пароля не отправлен:", sent.error);
+      }
     }
 
     return NextResponse.json(GENERIC_RESPONSE);
