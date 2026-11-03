@@ -118,6 +118,17 @@ API-роуты с БД) требует настоящего `.env.local` с ра
 - Статический «Дом» (`public/office/`) деплоится отдельным Vercel-проектом; его
   `public/office/vercel.json` редиректит `/` → `/house/index.html` и проксирует
   `/dashboard` на `https://supercar-cyan.vercel.app/dashboard`.
+- Башня HQ (`public/office/hq-tower/`, склейка Дом × vr-house) открывается статическим
+  сервером из `public/office` — пути `../vendor/` и `/hq-tower/` считаются от этого корня:
+
+  ```bash
+  cd public/office
+  python3 -m http.server 5181
+  ```
+
+  Дальше [http://127.0.0.1:5181/hq-tower/](http://127.0.0.1:5181/hq-tower/)
+  (облёт камеры: `?tour=1` или клавиша `T`). Заметки по склейке и коллабу с Nexus HQ /
+  21st.dev лежат в `docs/office/`. Каталог `public/office/house/` остаётся как есть.
 - Миграции БД на проде применяются вручную: `npm run db:generate && npm run db:migrate`.
 
 ## Project Structure
