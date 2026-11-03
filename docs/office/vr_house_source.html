@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>BEAUTY ART HQ — Цифровой Штаб (каркас v0)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#050608;font-family:'Segoe UI',Arial,sans-serif}
+  #hud{position:fixed;top:18px;left:22px;color:#e8e6e0;z-index:10;user-select:none;pointer-events:none}
+  #hud h1{margin:0;font-size:20px;letter-spacing:4px;font-weight:600}
+  #hud h1 span{color:#d4af37}
+  #hud p{margin:4px 0 0;font-size:11px;letter-spacing:2px;color:#8a8f98;text-transform:uppercase}
+  #bar{position:fixed;bottom:64px;right:22px;z-index:10;display:flex;gap:8px}
+  .btn{pointer-events:auto;cursor:pointer;background:rgba(20,24,30,.72);border:1px solid #3a4150;
+       color:#d7dae0;font-size:11px;letter-spacing:1.5px;padding:8px 14px;border-radius:3px;
+       text-transform:uppercase;transition:.2s}
+  .btn:hover{border-color:#d4af37;color:#d4af37}
+  .btn.on{border-color:#d4af37;color:#d4af37;background:rgba(60,50,20,.35)}
+  #ticker{position:fixed;bottom:0;left:0;right:0;z-index:10;background:linear-gradient(0deg,rgba(3,4,6,.92),rgba(3,4,6,0));
+       padding:26px 22px 14px;color:#cfd3da;font-size:12.5px;letter-spacing:.4px;pointer-events:none}
+  #ticker b{color:#d4af37;font-weight:600}
+  #loader{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#050608;
+       color:#d4af37;letter-spacing:6px;font-size:13px;z-index:50;transition:opacity .8s}
+</style>
+</head>
+<body>
+<div id="loader">Z · ЗАГРУЗКА ШТАБА…</div>
+<div id="hud">
+  <h1>BEAUTY ART <span>HQ</span></h1>
+  <p>Цифровой штаб · каркас v0 · Z-premium</p>
+</div>
+<div id="bar">
+  <div class="btn" id="bTour">Тур по отделам</div>
+  <div class="btn" id="bOrbit">Облёт</div>
+  <div class="btn" id="bTop">Вход сверху</div>
+</div>
+<div id="ticker">ШТАБ НА ЛИНИИ · ожидание событий…</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ============ БАЗА СЦЕНЫ ============ */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05070c);
+scene.fog = new THREE.FogExp2(0x05070c, 0.006);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 4000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.35;
+document.body.appendChild(renderer.domElement);
+
+/* окружение для отражений в стекле и металле */
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+
+/* луна + звёзды */
+scene.add(new THREE.AmbientLight(0x223044, 1.2));
+const moon = new THREE.DirectionalLight(0x9db8dd, 1.6);
+moon.position.set(-300, 420, -240);
+scene.add(moon);
+{
+  const g = new THREE.BufferGeometry(), N=1200, p=new Float32Array(N*3);
+  for(let i=0;i<N;i++){p[i*3]=(Math.random()-.5)*3000;p[i*3+1]=Math.random()*900+120;p[i*3+2]=(Math.random()-.5)*3000;}
+  g.setAttribute('position', new THREE.BufferAttribute(p,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0x8fa4c8,size:1.6,transparent:true,opacity:.75})));
+}
+
+/* земля */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(4000,4000),
+  new THREE.MeshStandardMaterial({color:0x0a0d12, roughness:.95, metalness:.1}));
+ground.rotation.x = -Math.PI/2; scene.add(ground);
+const grid = new THREE.GridHelper(1600, 80, 0x1c2735, 0x121821);
+grid.position.y = .2; scene.add(grid);
+
+/* ============ БАШНЯ ============ */
+const METAL  = new THREE.MeshStandardMaterial({color:0x2b313c, roughness:.35, metalness:.92});
+const METAL_DARK = new THREE.MeshStandardMaterial({color:0x14181f, roughness:.5, metalness:.85});
+const GLASS  = new THREE.MeshPhysicalMaterial({color:0x3a4c60, roughness:.06, metalness:0,
+              transparent:true, opacity:.14, side:THREE.DoubleSide, depthWrite:false,
+              envMapIntensity:1.8, clearcoat:1, clearcoatRoughness:.05});
+
+const FLOORS = [
+  {name:'ХОЛЛ / ВХОД',        h:0,   color:0xd4af37},
+  {name:'БАР · КУХНЯ · ДИДЖЕЙ', h:8,  color:0xff8c3a},
+  {name:'ОТДЕЛ МАРКЕТИНГА',   h:16,  color:0xff5f9e},
+  {name:'ОТДЕЛ ПРОДАЖ · CRM', h:24,  color:0x3fa9ff},
+  {name:'СТРАТЕГИЯ · OSINT',  h:32,  color:0x9d5cff},
+  {name:'КАБИНЕТ ДИРЕКТОРА',  h:40,  color:0xd4af37},
+];
+const FLOOR_H = 8, FLOOR_W = 46, FLOOR_D = 30;
+const tower = new THREE.Group(); scene.add(tower);
+
+/* ядро-стяжка */
+const core = new THREE.Mesh(new THREE.BoxGeometry(10, FLOOR_H*FLOORS.length+4, 8), METAL_DARK);
+core.position.y = (FLOOR_H*FLOORS.length)/2; tower.add(core);
+
+/* межэтажные плиты + металлические рёбра */
+for(let i=0;i<FLOORS.length;i++){
+  const y = i*FLOOR_H;
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(FLOOR_W+2, .7, FLOOR_D+2), METAL);
+  slab.position.y = y; tower.add(slab);
+}
+
+/* стеклянный занавес на каждый этаж (отдельные меши — для пульсации событий) */
+const floorGroups = [];
+FLOORS.forEach((f,i)=>{
+  const g = new THREE.Group(); g.position.y = i*FLOOR_H; tower.add(g);
+  floorGroups.push(g);
+
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(FLOOR_W, FLOOR_H, FLOOR_D), GLASS.clone());
+  glass.position.y = FLOOR_H/2; g.add(glass);
+
+  /* мулльоны — вертикальный металлический ритм */
+  const step = 4.6;
+  for(let x=-FLOOR_W/2; x<=FLOOR_W/2; x+=step){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(.22,FLOOR_H,.22), METAL);
+    m.position.set(x, FLOOR_H/2, FLOOR_D/2); g.add(m);
+    const m2 = m.clone(); m2.position.z = -FLOOR_D/2; g.add(m2);
+  }
+  for(let z=-FLOOR_D/2; z<=FLOOR_D/2; z+=step){
+    const m = new THREE.Mesh(new THREE.BoxGeometry(.22,FLOOR_H,.22), METAL);
+    m.position.set(FLOOR_W/2, FLOOR_H/2, z); g.add(m);
+    const m2 = m.clone(); m2.position.x = -FLOOR_W/2; g.add(m2);
+  }
+
+  /* тёплый свет интерьера */
+  const light = new THREE.PointLight(f.color, 60, 60, 1.4);
+  light.position.set(0, FLOOR_H/2, 0); g.add(light);
+  const light2 = new THREE.PointLight(0xfff2dd, 30, 50, 1.6);
+  light2.position.set(0, FLOOR_H-1.2, 0); g.add(light2);
+  g.userData.light = light;
+
+  /* светящиеся потолочные линии — видны сквозь стекло */
+  const stripMat = new THREE.MeshBasicMaterial({color:f.color});
+  for(const zz of [-FLOOR_D/2+3, 0, FLOOR_D/2-3]){
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(FLOOR_W-6,.06,.28), stripMat);
+    strip.position.set(0, FLOOR_H-.55, zz); g.add(strip);
+  }
+  /* светящийся контур плиты */
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(FLOOR_W+2.2,.12,FLOOR_D+2.2),
+    new THREE.MeshBasicMaterial({color:f.color, transparent:true, opacity:.5}));
+  rim.position.y = .35; g.add(rim);
+
+  /* столы + силуэты сотрудников */
+  const desks = new THREE.Group(); g.add(desks);
+  const deskMat = new THREE.MeshStandardMaterial({color:0x1a1f28, roughness:.4, metalness:.6});
+  const N = i===2 ? 6 : (i===0 ? 0 : 3);         // маркетинг — самый живой
+  for(let d=0; d<N; d++){
+    const px = -FLOOR_W/2+7 + (d%3)*7, pz = (d<3? -5 : 5);
+    const desk = new THREE.Mesh(new THREE.BoxGeometry(3,.9,1.4), deskMat);
+    desk.position.set(px, 1.0+i*FLOOR_H*0+ .9, pz); desk.position.y = .9;
+    desks.add(desk);
+    /* аватар: тело + голова, тёплый эмиссив */
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(.32,1.0,4,10),
+      new THREE.MeshStandardMaterial({color:0x11141a, emissive:f.color, emissiveIntensity:1.6, roughness:.7}));
+    body.position.set(px, 2.1, pz + (pz<0? 1.3 : -1.3));
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.26,12,12), body.material);
+    head.position.set(px, 3.0, body.position.z);
+    desks.add(body, head);
+    body.userData.phase = Math.random()*6.28;
+    g.userData.avatars = g.userData.avatars||[]; g.userData.avatars.push(body);
+  }
+
+  /* вывеска отдела */
+  const cnv = document.createElement('canvas'); cnv.width=1024; cnv.height=128;
+  const ctx = cnv.getContext('2d');
+  ctx.fillStyle='#0b0e13'; ctx.fillRect(0,0,1024,128);
+  ctx.strokeStyle='#'+f.color.toString(16).padStart(6,'0'); ctx.lineWidth=6;
+  ctx.strokeRect(6,6,1012,116);
+  ctx.font='600 56px Segoe UI,Arial'; ctx.fillStyle='#e9e6dd';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(f.name, 512, 68);
+  const tex = new THREE.CanvasTexture(cnv);
+  for(let s=0; s<4; s++){
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(20,2.5),
+      new THREE.MeshBasicMaterial({map:tex, transparent:true}));
+    sign.position.set(0, FLOOR_H-1.4, FLOOR_D/2+.3);
+    if(s===1) sign.rotation.y = Math.PI, sign.position.z = -(FLOOR_D/2+.3);
+    if(s===2){ sign.rotation.y =  Math.PI/2; sign.position.set(FLOOR_W/2+.3, FLOOR_H-1.4, 0); }
+    if(s===3){ sign.rotation.y = -Math.PI/2; sign.position.set(-(FLOOR_W/2+.3), FLOOR_H-1.4, 0); }
+    g.add(sign);
+  }
+});
+
+/* монолит Z у входа — привет Prime Intellect */
+{
+  const mono = new THREE.Mesh(new THREE.BoxGeometry(3.2, 14, .8),
+    new THREE.MeshStandardMaterial({color:0x0c0e12, roughness:.2, metalness:.9,
+      emissive:0xd4af37, emissiveIntensity:.7}));
+  mono.position.set(0, 7, FLOOR_D/2+9); scene.add(mono);
+  const gl = new THREE.PointLight(0xd4af37, 120, 60, 1.6); gl.position.set(0,10,FLOOR_D/2+8); scene.add(gl);
+  const cnv=document.createElement('canvas');cnv.width=256;cnv.height=256;
+  const c=cnv.getContext('2d');c.font='900 190px Georgia';c.fillStyle='#d4af37';
+  c.textAlign='center';c.textBaseline='middle';c.fillText('Z',128,138);
+  const z=new THREE.Mesh(new THREE.PlaneGeometry(2.6,2.6),
+    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cnv),transparent:true}));
+  z.position.set(0,10.5,FLOOR_D/2+9.45); scene.add(z);
+}
+
+/* окружение: силуэт города + горы */
+for(let i=0;i<26;i++){
+  const w=10+Math.random()*22, h=20+Math.random()*90;
+  const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),
+    new THREE.MeshStandardMaterial({color:0x0d1118, roughness:.8, metalness:.3,
+      emissive:0x2a3852, emissiveIntensity:.12}));
+  const a=Math.random()*6.28, r=140+Math.random()*420;
+  b.position.set(Math.cos(a)*r, h/2, Math.sin(a)*r); scene.add(b);
+}
+{
+  const mnt=new THREE.Mesh(new THREE.ConeGeometry(600, 320, 4, 1),
+    new THREE.MeshStandardMaterial({color:0x0a0e14, roughness:1, flatShading:true}));
+  mnt.position.set(-700, 120, -800); scene.add(mnt);
+  const mnt2=mnt.clone(); mnt2.position.set(800,80,-900); mnt2.scale.set(1.2,.6,1); scene.add(mnt2);
+}
+
+/* ============ КАМЕРА (кино) ============ */
+const camState = {mode:'orbit', t:0, from:new THREE.Vector3(), to:new THREE.Vector3(),
+                  lookFrom:new THREE.Vector3(), lookTo:new THREE.Vector3(), k:0};
+const R = 120;
+function orbitPos(t){ return new THREE.Vector3(Math.cos(t)*R, 58+Math.sin(t*.7)*18, Math.sin(t)*R); }
+function flyTo(pos, look, dur=2.2){
+  camState.mode='fly';
+  camState.from.copy(camera.position); camState.to.copy(pos);
+  camState.lookFrom.copy(camTarget); camState.lookTo.copy(look);
+  camState.k=0; camState.dur=dur;
+}
+let camTarget = new THREE.Vector3(0, 24, 0);
+let tourIdx = -1, tourTimer = 0;
+
+function floorCamPos(i){
+  const f=FLOORS[i];
+  return new THREE.Vector3(FLOOR_W*.9, f.h+4.5, FLOOR_D*.9+18);
+}
+function startTour(){ tourIdx=0; flyTo(floorCamPos(0), new THREE.Vector3(0, FLOORS[0].h+3, 0)); }
+
+document.getElementById('bTour').onclick = e=>{ setBtn(e.target); startTour(); };
+document.getElementById('bOrbit').onclick = e=>{ setBtn(e.target); camState.mode='orbit'; tourIdx=-1; };
+document.getElementById('bTop').onclick = e=>{ setBtn(e.target); tourIdx=-1;
+  flyTo(new THREE.Vector3(60,150,90), new THREE.Vector3(0,20,0)); };
+function setBtn(b){ document.querySelectorAll('.btn').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
+
+/* клик по этажу → подлёт */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+addEventListener('pointerdown', ev=>{
+  mouse.set(ev.clientX/innerWidth*2-1, -(ev.clientY/innerHeight)*2+1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(floorGroups.flatMap(g=>g.children), false)[0];
+  if(!hit) return;
+  let g = hit.object; while(g.parent && !floorGroups.includes(g)) g = g.parent;
+  const i = floorGroups.indexOf(g);
+  if(i>=0){ tourIdx=-1; flyTo(floorCamPos(i), new THREE.Vector3(0, i*FLOOR_H+3, 0)); }
+});
+
+/* ============ СОБЫТИЯ ШТАБА (заглушка events_audit → позже WebSocket) ============ */
+const EVENTS = [
+  ['ОТДЕЛ МАРКЕТИНГА','SMM-агент сгенерировал 3 Reels по лифтинговым нитям (Track IMAGE)'],
+  ['ОТДЕЛ ПРОДАЖ','CRM: найдено 24 косметолога Алматы, 8 — с покупательским интентом'],
+  ['СТРАТЕГИЯ · OSINT','Perplexity: Mintlift обновил прайс на филлеры −7%'],
+  ['КАБИНЕТ ДИРЕКТОРА','Ожидает approve: рассылка 100 врачам (GLAM, гинекологи)'],
+  ['ОТДЕЛ МАРКЕТИНГА','Video-intake разобрал Reels конкурента → промты в библиотеку'],
+  ['СТРАТЕГИЯ · OSINT','Тренд-радар: «lip filler KZ» +34% за 7 дней'],
+  ['ОТДЕЛ ПРОДАЖ','Рассылочный агент: WhatsApp-сессия live, 402 контакта в базе'],
+  ['БАР · КУХНЯ','Диджей сменил сет: lo-fi premium 🎧'],
+];
+const floorByDept = {0:0,1:1,2:2,3:2,4:3,5:4,6:3,7:1};
+const ticker = document.getElementById('ticker');
+let evIdx = 0;
+function fireEvent(){
+  const [dept, txt] = EVENTS[evIdx % EVENTS.length]; evIdx++;
+  const fl = floorByDept[(evIdx-1) % EVENTS.length];
+  ticker.innerHTML = `<b>${dept}</b> · ${txt}`;
+  const g = floorGroups[fl];
+  g.userData.pulse = 1;                      // вспышка этажа
+}
+
+/* ============ ЦИКЛ ============ */
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta(), t = clock.elapsedTime;
+
+  /* дыхание аватаров */
+  floorGroups.forEach(g=>(g.userData.avatars||[]).forEach((a,i)=>{
+    a.position.y = 2.1 + Math.sin(t*2 + a.userData.phase)*.06;
+  }));
+
+  /* пульс этажа по событию */
+  floorGroups.forEach(g=>{
+    if(g.userData.pulse>0){
+      g.userData.pulse = Math.max(0, g.userData.pulse - dt*.5);
+      g.userData.light.intensity = 260*Math.sin(g.userData.pulse*Math.PI) + 70;
+    } else {
+      g.userData.light.intensity += (70 - g.userData.light.intensity)*dt*2;
+    }
+  });
+
+  /* камера */
+  if(camState.mode==='orbit'){
+    camState.t += dt*.08;
+    camera.position.copy(orbitPos(camState.t));
+    camera.lookAt(0, 24, 0);
+  } else if(camState.mode==='fly'){
+    camState.k = Math.min(1, camState.k + dt/camState.dur);
+    const e = camState.k<.5 ? 4*camState.k**3 : 1-Math.pow(-2*camState.k+2,3)/2;
+    camera.position.lerpVectors(camState.from, camState.to, e);
+    camTarget.lerpVectors(camState.lookFrom, camState.lookTo, e);
+    camera.lookAt(camTarget);
+    if(camState.k>=1) camState.mode = tourIdx>=0 ? 'fly-hold' : 'hold';
+  } else if(camState.mode==='fly-hold'){
+    tourTimer += dt;
+    camera.position.x += Math.sin(t*.5)*dt*1.2;   /* лёгкий дрейф */
+    camera.lookAt(camTarget);
+    if(tourTimer > 4.5){ tourTimer=0;
+      tourIdx=(tourIdx+1)%FLOORS.length;
+      flyTo(floorCamPos(tourIdx), new THREE.Vector3(0,tourIdx*FLOOR_H+3,0));
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+setInterval(fireEvent, 6000); fireEvent();
+animate();
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+document.getElementById('loader').style.opacity = 0;
+setTimeout(()=>document.getElementById('loader').remove(), 900);
+</script>
+</body>
+</html>
