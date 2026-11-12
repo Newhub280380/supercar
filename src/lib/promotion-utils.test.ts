@@ -226,23 +226,23 @@ describe("sendEmailViaProvider", () => {
     vi.unstubAllGlobals();
   });
 
-  it("returns a mock success without an api key", async () => {
+  it("refuses to pretend success without an api key", async () => {
     const result = await sendEmailViaProvider(
       { provider: "sendgrid", apiKey: "", fromEmail: "from@b.co" },
       payload,
     );
 
-    expect(result.success).toBe(true);
-    expect(result.messageId).toMatch(/^mock-\d+$/);
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/не настроен/);
   });
 
-  it("returns a mock success for the literal test api key", async () => {
+  it("refuses the literal test api key", async () => {
     const result = await sendEmailViaProvider(
       { provider: "sendgrid", apiKey: "test", fromEmail: "from@b.co" },
       payload,
     );
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("posts to sendgrid and returns the message id", async () => {
@@ -302,12 +302,43 @@ describe("sendEmailViaProvider", () => {
     ).resolves.toEqual({ success: false, error: "network down" });
   });
 
-  it("reports unimplemented providers", async () => {
+  it("asks for a mailgun domain before calling the api", async () => {
     await expect(
       sendEmailViaProvider(
         { provider: "mailgun", apiKey: "real-key", fromEmail: "from@b.co" },
         payload,
       ),
-    ).resolves.toEqual({ success: false, error: "Provider not implemented" });
+    ).resolves.toEqual({
+      success: false,
+      error: "MAILGUN_DOMAIN не задан. Письмо не отправлено.",
+    });
+  });
+
+  it("posts to mailgun when the domain is configured", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({ id: "<msg@mg>" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sendEmailViaProvider(
+      {
+        provider: "mailgun",
+        apiKey: "real-key",
+        fromEmail: "from@b.co",
+        fromName: "CRM",
+        domain: "mg.example.com",
+      },
+      payload,
+    );
+
+    expect(result).toEqual({ success: true, messageId: "<msg@mg>" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.mailgun.net/v3/mg.example.com/messages");
+    expect(init.headers.Authorization).toBe(
+      `Basic ${Buffer.from("api:real-key").toString("base64")}`,
+    );
   });
 });

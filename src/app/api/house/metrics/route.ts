@@ -4,13 +4,18 @@ import { db } from "@/db";
 import {
   appointments,
   clients,
+  contacts,
   emailCampaigns,
+  leads,
   services,
   smsCampaigns,
   subscriberLists,
   subscribers,
+  users,
   utmCampaigns,
 } from "@/db/schema";
+import { formatClock, moneyAmount } from "@/lib/crm/schedule";
+import { toLocalIsoDate } from "@/lib/format";
 import { withRole } from "@/lib/api/handlers";
 import { MANAGER_ROLES } from "@/lib/auth";
 
@@ -74,6 +79,8 @@ export const GET = withRole(
       subscriberRows,
       revenue,
       prevRevenue,
+      contactRows,
+      leadRows,
     ] = await Promise.all([
       db
         .select({ value: count() })
@@ -141,7 +148,101 @@ export const GET = withRole(
         .where(eq(subscriberLists.userId, owner)),
       revenueBetween(owner, start, now),
       revenueBetween(owner, prevStart, start),
+      db
+        .select({ value: count() })
+        .from(contacts)
+        .where(eq(contacts.ownerId, owner)),
+      db
+        .select({ status: leads.status, value: count() })
+        .from(leads)
+        .groupBy(leads.status),
     ]);
+
+    const historyStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const history = await db
+      .select({
+        id: appointments.id,
+        date: appointments.date,
+        endTime: appointments.endTime,
+        status: appointments.status,
+        serviceName: services.name,
+        price: services.price,
+        duration: services.duration,
+        clientName: users.name,
+      })
+      .from(appointments)
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .innerJoin(users, eq(appointments.clientId, users.id))
+      .where(
+        and(
+          eq(appointments.cosmetologistId, owner),
+          gte(appointments.date, historyStart),
+        ),
+      );
+
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+    const today = history
+      .filter((row) => row.date >= dayStart && row.date < dayEnd)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((row) => ({
+        id: row.id,
+        clientName: row.clientName || "Без имени",
+        service: row.serviceName,
+        time: formatClock(row.date),
+        endTime: formatClock(
+          row.endTime ?? new Date(row.date.getTime() + row.duration * 60_000),
+        ),
+        status: row.status,
+        price: moneyAmount(row.price),
+      }));
+
+    const week = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(dayStart);
+      day.setDate(day.getDate() - (6 - index));
+      const next = new Date(day.getTime() + 86_400_000);
+      const value = history.filter(
+        (row) =>
+          row.status !== "cancelled" && row.date >= day && row.date < next,
+      ).length;
+      const label = day.toLocaleDateString("ru-RU", { weekday: "short" });
+      return { label, value };
+    });
+
+    const revenueMonths = Array.from({ length: 6 }, (_, index) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const next = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+      const value = history
+        .filter(
+          (row) =>
+            row.status === "completed" && row.date >= month && row.date < next,
+        )
+        .reduce((sum, row) => sum + moneyAmount(row.price), 0);
+      const label = month.toLocaleDateString("ru-RU", { month: "short" });
+      return { label, value };
+    });
+
+    const reminders = history
+      .filter(
+        (row) =>
+          row.date >= now &&
+          (row.status === "pending" || row.status === "confirmed"),
+      )
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 4)
+      .map((row) => ({
+        id: row.id,
+        clientName: row.clientName || "Без имени",
+        service: row.serviceName,
+        date: toLocalIsoDate(row.date),
+        time: formatClock(row.date),
+        type: "upcoming" as const,
+      }));
+
+    const leadsByStatus = Object.fromEntries(
+      leadRows.map((row) => [row.status, row.value]),
+    );
+    const leadsTotal = leadRows.reduce((sum, row) => sum + row.value, 0);
 
     const byStatus = Object.fromEntries(
       statusRows.map((row) => [row.status, row.value]),
@@ -182,6 +283,22 @@ export const GET = withRole(
         utmCampaigns: utmRows[0]?.value ?? 0,
         subscribers: subscriberRows[0]?.value ?? 0,
       },
+      contacts: { total: contactRows[0]?.value ?? 0 },
+      leads: {
+        total: leadsTotal,
+        new: leadsByStatus.new ?? 0,
+        byStatus: {
+          new: leadsByStatus.new ?? 0,
+          in_progress: leadsByStatus.in_progress ?? 0,
+          qualified: leadsByStatus.qualified ?? 0,
+          won: leadsByStatus.won ?? 0,
+          lost: leadsByStatus.lost ?? 0,
+        },
+      },
+      week,
+      revenueMonths,
+      today,
+      reminders,
     });
   },
 );

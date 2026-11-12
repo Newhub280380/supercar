@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -17,8 +17,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { clientsData, SKIN_TYPE_LABELS } from "@/lib/mock-data";
+import { SKIN_TYPE_LABELS, type ClientItem } from "@/lib/mock-data";
 import { exportClientsCsv } from "@/lib/csv-export";
 import { formatDate } from "@/lib/format";
 
@@ -52,13 +59,43 @@ function getInitialsColor(name: string): string {
 }
 
 export default function ClientsPage() {
+  const [clients, setClients] = useState<ClientItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    skinType: "",
+  });
+  const [formError, setFormError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [skinFilter, setSkinFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/clients")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!alive) return;
+        if (!data) {
+          setLoadError("Не удалось загрузить клиентов");
+          return;
+        }
+        setClients(data.clients ?? []);
+      })
+      .catch(() => {
+        if (alive) setLoadError("Не удалось загрузить клиентов");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const filteredClients = useMemo(() => {
-    let result = clientsData;
+    let result = clients;
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -75,7 +112,29 @@ export default function ClientsPage() {
       result = result.filter((c) => c.skinType === skinFilter);
     }
     return result;
-  }, [search, statusFilter, skinFilter]);
+  }, [clients, search, statusFilter, skinFilter]);
+
+  const createClient = async () => {
+    setFormError(null);
+    const res = await fetch("/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        skinType: form.skinType || null,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setFormError(data?.error ?? "Не удалось создать клиента");
+      return;
+    }
+    setClients((current) => [data.client, ...current]);
+    setShowCreate(false);
+    setForm({ name: "", email: "", phone: "", skinType: "" });
+  };
 
   const handleExport = () => {
     const data = filteredClients.map((c) => ({
@@ -98,10 +157,11 @@ export default function ClientsPage() {
         <div>
           <h1 className="font-heading text-2xl font-bold">Клиенты</h1>
           <p className="text-muted-foreground text-sm">
-            {clientsData.length} клиентов · {filteredClients.length} показано
+            {clients.length} клиентов · {filteredClients.length} показано
+            {loadError ? ` · ${loadError}` : ""}
           </p>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={() => setShowCreate(true)}>
           <UserPlus className="size-4" />
           Добавить клиента
         </Button>
@@ -225,11 +285,19 @@ export default function ClientsPage() {
           )}
         </div>
       )}
+      <CreateClientDialog
+        open={showCreate}
+        form={form}
+        error={formError}
+        onChange={setForm}
+        onClose={() => setShowCreate(false)}
+        onSave={() => void createClient()}
+      />
     </div>
   );
 }
 
-function ClientRow({ client }: { client: (typeof clientsData)[0] }) {
+function ClientRow({ client }: { client: ClientItem }) {
   const initials = client.name
     .split(" ")
     .map((n) => n[0])
@@ -308,7 +376,7 @@ function ClientRow({ client }: { client: (typeof clientsData)[0] }) {
   );
 }
 
-function ClientCard({ client }: { client: (typeof clientsData)[0] }) {
+function ClientCard({ client }: { client: ClientItem }) {
   const initials = client.name
     .split(" ")
     .map((n) => n[0])
@@ -381,5 +449,67 @@ function EmptyResults() {
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <p className="text-muted-foreground text-sm">Клиенты не найдены</p>
     </div>
+  );
+}
+
+function CreateClientDialog({
+  open,
+  form,
+  error,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  form: { name: string; email: string; phone: string; skinType: string };
+  error: string | null;
+  onChange: (next: { name: string; email: string; phone: string; skinType: string }) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Новый клиент</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <Input
+            placeholder="Имя"
+            value={form.name}
+            onChange={(event) => onChange({ ...form, name: event.target.value })}
+          />
+          <Input
+            placeholder="Email"
+            value={form.email}
+            onChange={(event) => onChange({ ...form, email: event.target.value })}
+          />
+          <Input
+            placeholder="Телефон"
+            value={form.phone}
+            onChange={(event) => onChange({ ...form, phone: event.target.value })}
+          />
+          <select
+            value={form.skinType}
+            onChange={(event) => onChange({ ...form, skinType: event.target.value })}
+            className="border-border bg-background h-8 rounded-lg border px-2 text-sm"
+          >
+            <option value="">Тип кожи не указан</option>
+            {Object.entries(SKIN_TYPE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Отмена
+          </Button>
+          <Button onClick={onSave}>Сохранить</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

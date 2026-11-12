@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   AlertCircle,
@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { seoPagesData, type SeoPageItem } from "@/lib/promotion-mock-data";
+import { type SeoPageItem } from "@/lib/promotion-mock-data";
 import { auditSeoPages } from "@/lib/promotion-utils";
 import { downloadText } from "@/lib/download";
 
@@ -51,6 +51,20 @@ const SEVERITY_CONFIG = {
 
 export default function SeoPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [seoPagesData, setSeoPagesData] = useState<SeoPageItem[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/seo/pages")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (alive) setSeoPagesData(data?.pages ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [showAudit, setShowAudit] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 

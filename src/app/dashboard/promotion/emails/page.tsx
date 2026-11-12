@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Mail,
   Plus,
@@ -18,11 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  emailCampaignsData,
-  subscriberListsData,
-  subscribersData,
   EMAIL_STATUS_LABELS,
   type EmailCampaignItem,
+  type SubscriberItem,
+  type SubscriberListItem,
 } from "@/lib/promotion-mock-data";
 import type { EmailCampaignStatus } from "@/types";
 import { calculateEmailMetrics } from "@/lib/promotion-utils";
@@ -47,11 +46,51 @@ const STATUS_COLORS: Record<EmailCampaignStatus, string> = {
 export default function EmailsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [campaigns, setCampaigns] = useState<EmailCampaignItem[]>([]);
+  const [subscriberListsData, setLists] = useState<SubscriberListItem[]>([]);
+  const [subscribersData, setSubscribers] = useState<SubscriberItem[]>([]);
+  const [subject, setSubject] = useState("");
+  const [content, setContent] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/campaigns/email")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!alive || !data) return;
+        setCampaigns(data.campaigns ?? []);
+        setLists(data.lists ?? []);
+        setSubscribers(data.subscribers ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const saveDraft = async () => {
+    setCreateError(null);
+    const res = await fetch("/api/campaigns/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, content }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      setCreateError(data?.error ?? "Не удалось сохранить черновик");
+      return;
+    }
+    setCampaigns((current) => [data.campaign, ...current]);
+    setSubject("");
+    setContent("");
+    setShowCreate(false);
+  };
   const [activeTab, setActiveTab] = useState<
     "campaigns" | "lists" | "subscribers"
   >("campaigns");
 
-  const filteredCampaigns = emailCampaignsData.filter(
+  const filteredCampaigns = campaigns.filter(
     (c) =>
       c.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.listName.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -188,7 +227,12 @@ export default function EmailsPage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium">Тема письма</label>
-              <Input placeholder="Введите тему письма" className="mt-1" />
+              <Input
+                placeholder="Введите тему письма"
+                className="mt-1"
+                value={subject}
+                onChange={(event) => setSubject(event.target.value)}
+              />
             </div>
             <div>
               <label className="text-sm font-medium">Список получателей</label>
@@ -214,16 +258,25 @@ export default function EmailsPage() {
               <label className="text-sm font-medium">Содержимое</label>
               <textarea
                 placeholder="HTML-содержимое письма..."
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
                 className="border-input mt-1 min-h-32 w-full rounded-lg border bg-transparent px-2.5 py-2 text-sm"
               />
             </div>
+            <p className="text-muted-foreground text-xs">
+              Письмо сохраняется черновиком. Отправка требует SENDGRID_API_KEY
+              или MAILGUN_API_KEY и MAILGUN_DOMAIN.
+            </p>
+            {createError && (
+              <p className="text-destructive text-sm">{createError}</p>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCreate(false)}>
                 Отмена
               </Button>
-              <Button onClick={() => setShowCreate(false)}>
+              <Button onClick={() => void saveDraft()}>
                 <Send className="size-4" />
-                Создать черновик
+                Сохранить черновик
               </Button>
             </div>
           </div>

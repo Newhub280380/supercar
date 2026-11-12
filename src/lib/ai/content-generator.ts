@@ -73,19 +73,21 @@ async function callOpenAIForContent(
 
 function buildFallbackContent(prompt: string): string {
   const procExamples = procedures.slice(0, 3);
+  const notice =
+    "Черновик без OpenAI: задайте OPENAI_API_KEY. Ниже — шаблон из локальной базы.\n\n";
 
   const isEmail = /email|письм/i.test(prompt);
   const isHashtag = /хештег|hashtag/i.test(prompt);
   const isSeo = /SEO/i.test(prompt);
 
   if (isHashtag) {
-    return `#косметолог #косметология #уходзалицом #процедуры #красота
+    return `${notice}#косметолог #косметология #уходзалицом #процедуры #красота
 #инъекциикрасоты #биоревитализация #пилинг #филлеры #ботокс
 #молокосметолог #салонкрасоты #антиэйдж #омоложение`;
   }
 
   if (isSeo) {
-    return `# ${procExamples[0].name}
+    return `${notice}# ${procExamples[0].name}
 
 ${procExamples[0].description}
 
@@ -120,7 +122,7 @@ ${procExamples[0].contraindications.join(", ")}
   }
 
   if (isEmail) {
-    return `Subject: ✨ Специальное предложение для вас
+    return `${notice}Subject: ✨ Специальное предложение для вас
 
 Здравствуйте, {Имя}!
 
@@ -140,7 +142,7 @@ P.S. При первом визите — бесплатная консульт�
 Ваш косметолог`;
   }
 
-  return `✨ ${procExamples[0].name} — ваша кожа заслуживает лучшего!
+  return `${notice}✨ ${procExamples[0].name} — ваша кожа заслуживает лучшего!
 
 Каждая женщина мечтает о сияющей, здоровой коже. ${procExamples[0].name} — это процедура, которая поможет вам достичь этой цели.
 

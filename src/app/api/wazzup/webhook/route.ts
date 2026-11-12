@@ -27,8 +27,10 @@ function trimmed(value: unknown, max: number): string | null {
 }
 
 /** Входящее сообщение от клиента: не эхо нашего ответа и со статусом inbound. */
-function isInbound(message: WazzupMessage): boolean {
-  return message.isEcho !== true && message.status === "inbound";
+function isInbound(message: unknown): message is WazzupMessage {
+  if (!message || typeof message !== "object") return false;
+  const { isEcho, status } = message as WazzupMessage;
+  return isEcho !== true && status === "inbound";
 }
 
 /** Окно, внутри которого повторная доставка того же сообщения считается дублем. */
@@ -52,7 +54,7 @@ export const POST = withErrorHandling(
       body &&
       typeof body === "object" &&
       Array.isArray((body as { messages?: unknown }).messages)
-        ? (body as { messages: WazzupMessage[] }).messages
+        ? (body as { messages: unknown[] }).messages
         : [];
 
     const rows = messages.filter(isInbound).flatMap((message) => {

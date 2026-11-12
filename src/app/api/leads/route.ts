@@ -4,12 +4,9 @@ import { db } from "@/db";
 import { leads, leadSourceEnum, leadStatusEnum } from "@/db/schema";
 import { withRateLimit, withRole } from "@/lib/api/handlers";
 import { getSearchParam, isNonEmptyString } from "@/lib/api/request";
-import {
-  badRequest,
-  unauthorized,
-  withErrorHandling,
-} from "@/lib/api/response";
+import { badRequest, withErrorHandling } from "@/lib/api/response";
 import { MANAGER_ROLES } from "@/lib/auth";
+import { leadWriteDenied } from "@/lib/crm/lead-access";
 
 const SOURCES = leadSourceEnum.enumValues;
 type LeadSource = (typeof SOURCES)[number];
@@ -121,11 +118,8 @@ export const POST = withRateLimit(
   "leads-ingest",
   INGEST_PER_MINUTE,
   withErrorHandling("Ошибка приёма лида", async (request: NextRequest) => {
-    const token = process.env.LEADS_INGEST_TOKEN;
-    if (!token) return unauthorized("Приём лидов не настроен");
-    if (request.headers.get("authorization") !== `Bearer ${token}`) {
-      return unauthorized();
-    }
+    const denied = await leadWriteDenied(request);
+    if (denied) return denied;
 
     const body: unknown = await request.json().catch(() => null);
     if (!body || typeof body !== "object") return badRequest("Ожидается JSON");
@@ -164,6 +158,10 @@ export const POST = withRateLimit(
       return NextResponse.json({ lead, merged: true });
     }
 
+    if (data.status !== undefined && !isStatus(data.status)) {
+      return badRequest("Неверный status");
+    }
+
     const [lead] = await db
       .insert(leads)
       .values({
@@ -175,6 +173,7 @@ export const POST = withRateLimit(
         escalate: data.escalate === true,
         reason: trimmed(data.reason, MAX_LEN.text),
         campaign: trimmed(data.campaign, MAX_LEN.campaign),
+        ...(isStatus(data.status) ? { status: data.status } : {}),
       })
       .returning();
 
