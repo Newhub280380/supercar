@@ -58,7 +58,13 @@ async function askOpenAICompat(
       }),
     });
     const raw = await res.text();
-    let data: any = {};
+    let data: {
+      error?: { message?: string };
+      model?: string;
+      choices?: {
+        message?: { content?: string; reasoning_content?: string; reasoning?: string };
+      }[];
+    } = {};
     try {
       data = JSON.parse(raw);
     } catch {
@@ -226,9 +232,6 @@ export const POST = withRole(
     // Раунд 2 — перекрёстная критика: каждый топит чужие варианты.
     let critiques: MemberResult[] = [];
     if (debate && answered.length > 1) {
-      const pool = answered
-        .map((r, i) => `ВАРИАНТ ${String.fromCharCode(65 + i)} (${r.label}): ${r.content}`)
-        .join("\n\n");
       critiques = await Promise.all(
         members.map(async (m) => {
           const own = responses.find((r) => r.label === m.label);
